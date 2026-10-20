@@ -12,6 +12,9 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
 /* Layout: maroon masthead band + scrollable tab rail; content column max 1240px; cards only for distinct objects (forms, charts) */
 :root{
@@ -293,18 +296,22 @@ function saveLocal(){ if(S.mode!=="local") return; if(!lsSet(LKEY,{cfg:S.cfgFrom
 async function put(kind,obj){
   obj.updatedAt=new Date().toISOString(); if(!obj.year) obj.year=S.year;
   S[kind][obj.id]=obj;
-  if(S.mode==="db"){ try{ await S.db.collection(kind).doc(obj.id).set(clone(obj)); }catch(e){ handleDbErr(e); throw e; } }
+  if(S.mode==="fb"){ if(kind==="visits"){ obj.tv=(obj.status==="closed"||obj.status==="sent")&&obj.purpose!=="calib"; if(!obj.recordedByUid&&obj.recordedBy===S.user.key&&FB.udoc) obj.recordedByUid=FB.udoc.uid; }
+    try{ await FB.db.collection(kind).doc(obj.id).set(clone(obj)); }catch(e){ toast(fbErr(e)); throw e; } }
+  else if(S.mode==="db"){ try{ await S.db.collection(kind).doc(obj.id).set(clone(obj)); }catch(e){ handleDbErr(e); throw e; } }
   else saveLocal();
 }
 async function del(kind,id){
   delete S[kind][id];
-  if(S.mode==="db"){ try{ await S.db.collection(kind).doc(id).delete(); }catch(e){ handleDbErr(e); } }
+  if(S.mode==="fb"){ try{ await FB.db.collection(kind).doc(id).delete(); }catch(e){ toast(fbErr(e)); } }
+  else if(S.mode==="db"){ try{ await S.db.collection(kind).doc(id).delete(); }catch(e){ handleDbErr(e); } }
   else saveLocal();
 }
 async function saveCfg(){ splitBack(); return persistRoot(); }
 async function persistRoot(){
   S.cfgFromStore=true;
-  if(S.mode==="db"){ try{ await S.db.doc("cfg/main").set(clone(S.root)); }catch(e){ handleDbErr(e); throw e; } }
+  if(S.mode==="fb"){ const r=clone(S.root); delete r.accounts; delete r.pins; try{ await FB.db.doc("cfg/main").set(r); }catch(e){ toast(fbErr(e)); throw e; } }
+  else if(S.mode==="db"){ try{ await S.db.doc("cfg/main").set(clone(S.root)); }catch(e){ handleDbErr(e); throw e; } }
   else saveLocal();
 }
 function handleDbErr(e){
@@ -316,6 +323,7 @@ function handleDbErr(e){
 let rerenderTimer=null;
 function softRerender(){ clearTimeout(rerenderTimer); rerenderTimer=setTimeout(()=>{ if(S.view!=="form"&&S.view!=="settings") render(); else updateMast(); },250); }
 async function initStore(){
+  if(fbWanted()){ try{ fbInit(); return; }catch(e){ console.error(e); } }
   loadLocal();
   S.ready=true; boot();
   try{
@@ -350,7 +358,7 @@ const DEFAULT_PERMS={
  teacher:[]
 };
 function can(c){ const u=S.user; if(!u) return false; if(u.role==="admin") return true; if(c==="visit.editClosed") c="visit.editOthers"; if(c==="users.manage"&&!acctMode()&&(u.role==="principal"||u.role==="deputy")) return true; const P=(S.root.perms||DEFAULT_PERMS)[u.role]||DEFAULT_PERMS[u.role]||[]; return P.includes(c); }
-const acctMode = ()=>Array.isArray(S.root.accounts)&&S.root.accounts.length>0;
+const acctMode = ()=>S.mode==="fb"||ACC().length>0;
 const tLocal = t=>String(t.email||"").split("@")[0].toLowerCase();
 function resolveAcct(a){
   const b={key:"u:"+a.u.toLowerCase(),role:a.role,name:a.name,email:a.email||"",uname:a.u};
@@ -362,7 +370,7 @@ function resolveAcct(a){
   return b;
 }
 function users(){
-  if(acctMode()) return S.root.accounts.filter(a=>!a.disabled).map(resolveAcct);
+  if(acctMode()) return ACC().filter(a=>!a.disabled).map(resolveAcct);
   const u=[{key:"p",role:"principal",name:S.cfg.principal.name,email:S.cfg.principal.email}];
   S.cfg.deputies.forEach((d,i)=>u.push({key:"dp"+i,role:"deputy",name:d.name,email:d.email}));
   S.cfg.depts.forEach(d=>{const c=coordOf(d); if(c) u.push({key:"c"+d.id,role:"coord",name:c.name,email:c.email,deptId:d.id,teacherId:c.id});});
@@ -390,7 +398,7 @@ function myIdentity(){ const u=S.user; if(!u) return {keys:new Set(),names:[]}; 
   if(u.role==="principal"||u.role==="admin"){ if(u.role==="principal"||nameMatch(u.name,S.cfg.principal.name)){ keys.add("p"); names.push(S.cfg.principal.name); } }
   if(u.role==="deputy"||u.role==="admin"||u.role==="principal"){ S.cfg.deputies.forEach((d,i)=>{ if(nameMatch(u.name,d.name)){ keys.add("dp"+i); names.push(d.name); } }); }
   // الحسابات القديمة لنفس الشخص (بالاسم) قبل رفع ملف المستخدمين
-  (S.root.accounts||[]).forEach(a=>{ if(nameMatch(a.name,u.name)) keys.add("u:"+a.u.toLowerCase()); });
+  ACC().forEach(a=>{ if(nameMatch(a.name,u.name)) keys.add("u:"+a.u.toLowerCase()); });
   _idc={sig,keys,names:[...new Set(names.filter(Boolean))]}; return _idc; }
 function ownVisit(v){ const u=S.user; if(!u) return false; const id=myIdentity(); if(id.keys.has(v.recordedBy)) return true;
   if(v.recordedByName&&id.names.some(n=>nameMatch(n,v.recordedByName))) return true;
@@ -405,7 +413,119 @@ const ordOf = v=>ORD[visitNo(v)-1]||String(visitNo(v));
 const roleLabel = u=>u.role==="coord"?"منسق "+((D(u.deptId)||{}).name||""):ROLE_NAMES[u.role]||"";
 /* سجل العمليات */
 function logAct(a,d){ try{ const e={id:uid(),t:new Date().toISOString(),u:S.user?S.user.name:"—",r:S.user?S.user.role:"",a,d:String(d||"").slice(0,300),y:S.year}; S.log.unshift(e); if(S.log.length>3000) S.log.length=3000;
-  if(S.mode==="db"&&S.db){ S.db.collection("log").doc(e.id).set(e).catch(()=>{}); } else saveLocal(); }catch(_){} }
+  if(S.mode==="fb"&&FB.db){ FB.db.collection("log").doc(e.id).set(e).catch(()=>{}); } else if(S.mode==="db"&&S.db){ S.db.collection("log").doc(e.id).set(e).catch(()=>{}); } else saveLocal(); }catch(_){} }
+
+/* ============ Firebase: قاعدة بيانات مشتركة ودخول بالحسابات ============ */
+const FB_CONFIG = {
+  apiKey: "AIzaSyCvRKDZ5USIG8k4MYLfb9yRAl_ngLAiAnY",
+  authDomain: "hamza-visits.firebaseapp.com",
+  projectId: "hamza-visits",
+  storageBucket: "hamza-visits.firebasestorage.app",
+  messagingSenderId: "785725328242",
+  appId: "1:785725328242:web:c7814f6976095b5b4eebeb"
+};
+const FB_MAIL = u=>`${String(u).trim().toLowerCase().replace(/@.*$/,"")}@hamza-visits.app`;
+const fbPass = p=>String(p)+"#Hz2026";
+const FB = {app:null,auth:null,db:null,unsubs:[],udoc:null,started:false};
+const ACC = ()=>S.mode==="fb"?(S.fbUsers||[]):(S.root.accounts||[]);
+function fbWanted(){ try{ if(/[?&]local=1/.test(location.search)) return false; return /^https?:$/.test(location.protocol)&&!!window.firebase&&!/claude\.ai|claudeusercontent/.test(location.hostname); }catch(e){ return false; } }
+function fbErr(e){ const c=(e&&e.code)||""; return ({"auth/invalid-credential":"اسم المستخدم أو كلمة المرور غير صحيحة.","auth/wrong-password":"اسم المستخدم أو كلمة المرور غير صحيحة.","auth/user-not-found":"اسم المستخدم أو كلمة المرور غير صحيحة.","auth/invalid-email":"اسم المستخدم غير صالح (حروف إنجليزية وأرقام ونقطة فقط).","auth/too-many-requests":"محاولات كثيرة؛ انتظر قليلًا ثم حاول.","auth/network-request-failed":"لا يوجد اتصال بالإنترنت.","auth/unauthorized-domain":"هذا الرابط غير مضاف في Authorized domains داخل Firebase.","auth/api-key-not-valid.-please-pass-a-valid-api-key.":"مفتاح Firebase غير صحيح؛ راجع firebaseConfig.","auth/email-already-in-use":"اسم المستخدم مستخدم مسبقًا.","permission-denied":"لا تملك صلاحية هذا الإجراء (قواعد الحماية).","unavailable":"تعذّر الاتصال بقاعدة البيانات."})[c]||("خطأ: "+(e&&e.message||c)); }
+function fbUnsubAll(){ FB.unsubs.forEach(u=>{try{u()}catch(_){}}); FB.unsubs=[]; }
+function fbUserFromDoc(){ const d=FB.udoc; if(!d) return null; const r=resolveAcct({u:d.u,name:d.name,role:d.role,dept:d.dept||""}); if(!r.teacherId&&d.teacherId){ r.teacherId=d.teacherId; } if(!r.deptId&&d.deptId) r.deptId=d.deptId; if(!r.email&&d.email) r.email=d.email; r.uid=d.uid; return r; }
+function fbInit(){
+  FB.app=firebase.initializeApp(FB_CONFIG); FB.auth=firebase.auth(); FB.db=firebase.firestore();
+  try{ FB.db.enablePersistence({synchronizeTabs:true}).catch(()=>{}); }catch(_){}
+  S.mode="fb"; S.visits={}; S.pd={}; S.log=[]; S.root=migrate(DEFAULT_CFG); S.year=lsGet("hamza-year",null)||S.root.activeYear; applyYear(); S.ready=true; S.fbLoading=true; render();
+  FB.auth.onAuthStateChanged(async user=>{
+    fbUnsubAll(); S.visits={}; S.pd={}; S.log=[]; S.fbUsers=[];
+    if(!user){ FB.udoc=null; S.user=null; S.fbLoading=false; render(); return; }
+    let ud; try{ ud=await FB.db.doc("users/"+user.uid).get(); }catch(e){ toast(fbErr(e)); await FB.auth.signOut(); return; }
+    if(!ud.exists||ud.data().disabled){ toast(ud.exists?"هذا الحساب معطّل.":"الحساب غير مسجّل في النظام؛ تواصل مع مدير النظام."); await FB.auth.signOut(); return; }
+    FB.udoc=Object.assign({uid:user.uid},ud.data()); S.fbLoading=true;
+    let first=true;
+    FB.unsubs.push(FB.db.doc("cfg/main").onSnapshot(s=>{ S.root=s.exists?migrate(s.data()):migrate(DEFAULT_CFG); S.cfgFromStore=s.exists; if(!S.root.years[S.year]) S.year=lsGet("hamza-year",null)||S.root.activeYear; applyYear(); _idc=null;
+      S.user=fbUserFromDoc(); if(first){ first=false; S.fbLoading=false; const sess=lsGet("hamza-sess",null); const v=sess&&VIEWS.find(x=>x.k===sess.view); S.view=v&&v.ok()?sess.view:homeView(); fbSubscribe(); render(); } else softRerender(); },e=>{ toast(fbErr(e)); }));
+  });
+}
+function fbSubscribe(){
+  const d=FB.udoc; const role=d.role; const full=["admin","principal","deputy"].includes(role);
+  const snapTo=k=>snap=>{ const o={}; snap.docs.forEach(x=>{o[x.id]=x.data();}); S[k]=o; softRerender(); };
+  const err=e=>toast(fbErr(e));
+  let qv=FB.db.collection("visits"), qp=FB.db.collection("pd");
+  if(role==="coord"){ qv=qv.where("deptId","==",d.deptId||"-"); qp=qp.where("deptId","==",d.deptId||"-"); }
+  else if(role==="teacher"){ qv=qv.where("teacherId","==",d.teacherId||"-").where("tv","==",true); qp=qp.where("teacherId","==",d.teacherId||"-"); }
+  FB.unsubs.push(qv.onSnapshot(snapTo("visits"),err), qp.onSnapshot(snapTo("pd"),err));
+  if(role!=="teacher") FB.unsubs.push(FB.db.collection("users").onSnapshot(s=>{ S.fbUsers=s.docs.map(x=>Object.assign({uid:x.id},x.data())); _idc=null; softRerender(); },()=>{}));
+  if(role==="admin") FB.unsubs.push(FB.db.collection("log").orderBy("t","desc").limit(500).onSnapshot(s=>{ S.log=s.docs.map(x=>x.data()); },()=>{}));
+}
+async function fbLogin(u,p){ await FB.auth.signInWithEmailAndPassword(FB_MAIL(u),fbPass(p)); }
+async function fbBootstrap(u,p,name){
+  const cred=await FB.auth.createUserWithEmailAndPassword(FB_MAIL(u),fbPass(p)); const uid=cred.user.uid;
+  try{ const b=FB.db.batch(); b.set(FB.db.doc("meta/bootstrap"),{by:uid,at:new Date().toISOString()}); b.set(FB.db.doc("users/"+uid),{u:u.toLowerCase(),name,role:"admin",dept:""}); await b.commit(); }
+  catch(e){ try{ await cred.user.delete(); }catch(_){} throw new Error("تم الإعداد الأول مسبقًا؛ ادخل بحساب مدير النظام."); }
+}
+function fbCreator(){ const ex=firebase.apps.find(a=>a.name==="creator"); const app=ex||firebase.initializeApp(FB_CONFIG,"creator"); const a=app.auth(); try{ a.setPersistence(firebase.auth.Auth.Persistence.NONE); }catch(_){} return a; }
+async function fbUpsertUser(acc,pass){ // ينشئ حساب الدخول (أو يتحقق منه) ثم يكتب ملف الصلاحيات
+  const ca=fbCreator(); let uid;
+  try{ uid=(await ca.createUserWithEmailAndPassword(FB_MAIL(acc.u),fbPass(pass))).user.uid; }
+  catch(e){ if(e.code==="auth/email-already-in-use"){ try{ uid=(await ca.signInWithEmailAndPassword(FB_MAIL(acc.u),fbPass(pass))).user.uid; }catch(_){ throw new Error(`«${acc.u}» موجود بكلمة مرور مختلفة`); } } else throw new Error(`«${acc.u}»: ${fbErr(e)}`); }
+  try{ await ca.signOut(); }catch(_){}
+  const r=resolveAcct({u:acc.u,name:acc.name,role:acc.role,dept:acc.dept||""});
+  await FB.db.doc("users/"+uid).set({u:acc.u.toLowerCase(),name:acc.name,role:acc.role,dept:acc.dept||"",teacherId:r.teacherId||null,deptId:r.deptId||null,email:r.email||"",disabled:false});
+  return uid;
+}
+async function fbImportUsers(list,onProg){ const fails=[]; let ok=0; for(let i=0;i<list.length;i++){ if(onProg&&onProg(i,list.length)===false) break; try{ await fbUpsertUser(list[i],list[i].p); ok++; }catch(e){ fails.push(e.message); } } return {ok,fails}; }
+async function fbRelinkUsers(){ // تحديث ربط المعلمين والأقسام بعد تغيير الكادر
+  let n=0; for(const d of (S.fbUsers||[])){ if(d.role!=="teacher"&&d.role!=="coord") continue; const r=resolveAcct({u:d.u,name:d.name,role:d.role,dept:d.dept||""}); if(r.teacherId&&(r.teacherId!==d.teacherId||r.deptId!==d.deptId)){ await FB.db.doc("users/"+d.uid).update({teacherId:r.teacherId,deptId:r.deptId,email:r.email||d.email||""}); n++; } } return n; }
+const FB_RULES = `rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function uref() { return /databases/$(database)/documents/users/$(request.auth.uid); }
+    function me() { return get(uref()).data; }
+    function active() { return signedIn() && exists(uref()) && me().disabled != true; }
+    function role() { return me().role; }
+    function lead() { return active() && role() in ['admin', 'principal', 'deputy']; }
+    function staff() { return active() && role() in ['admin', 'principal', 'deputy', 'coord']; }
+    function admin() { return active() && role() == 'admin'; }
+    function coordOf(d) { return active() && role() == 'coord' && d.deptId == me().deptId; }
+    function teacherOf(d) { return active() && role() == 'teacher' && d.teacherId == me().teacherId; }
+
+    match /meta/bootstrap {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.by == request.auth.uid;
+    }
+    match /users/{uid} {
+      allow read: if active() && (uid == request.auth.uid || role() != 'teacher');
+      allow create: if admin() || (signedIn() && uid == request.auth.uid && request.resource.data.role == 'admin'
+        && !exists(/databases/$(database)/documents/meta/bootstrap)
+        && getAfter(/databases/$(database)/documents/meta/bootstrap).data.by == request.auth.uid);
+      allow update, delete: if admin();
+    }
+    match /cfg/{doc} {
+      allow read: if active();
+      allow write: if staff();
+    }
+    match /visits/{id} {
+      allow read: if lead() || coordOf(resource.data) || (teacherOf(resource.data) && resource.data.tv == true);
+      allow create: if lead() || coordOf(request.resource.data);
+      allow update: if lead() || coordOf(resource.data)
+        || (teacherOf(resource.data) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reflection', 'ack', 'ackAt', 'updatedAt']));
+      allow delete: if (active() && role() in ['admin', 'principal']) || (staff() && resource.data.recordedByUid == request.auth.uid);
+    }
+    match /pd/{id} {
+      allow read: if lead() || coordOf(resource.data) || teacherOf(resource.data);
+      allow create: if lead() || coordOf(request.resource.data);
+      allow update: if lead() || coordOf(resource.data)
+        || (teacherOf(resource.data) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['progress', 'status', 'updatedAt']));
+      allow delete: if lead() || coordOf(resource.data);
+    }
+    match /log/{id} {
+      allow create: if active();
+      allow read: if admin();
+    }
+  }
+}`;
 
 /* ============ الحسابات ============ */
 function termOf(iso){ const t=S.cfg.terms.find(t=>iso>=t.from&&iso<=t.to); return t?t.name:"خارج الفصول"; }
@@ -496,7 +616,7 @@ function shell(inner){
    <button class="bell" id="bell" aria-label="التنبيهات">${ico("bell",18)}${nts.length?`<span class="badge">${nts.length}</span>`:""}</button>
    <button class="chip userchip" id="umenu" title="الحساب">${esc(u.name)} · ${esc(roleLabel(u))}</button></div></div></header>
    <div class="layout"><nav class="side" aria-label="أقسام النظام">${tabs.map(v=>`<button data-view="${v.k}" ${S.view===v.k?'aria-current="page"':""}>${ico(v.i)}<span>${typeof v.t==="function"?v.t():v.t}</span></button>`).join("")}
-   <div class="side-foot"><span class="chip ${S.mode==="db"?"mode-db":""}">${S.mode==="db"?"بيانات مشتركة":"حفظ محلي"}</span><span class="muted small">العام ${esc(S.year)}</span></div></nav>
+   <div class="side-foot"><span class="chip ${S.mode!=="local"?"mode-db":""}">${S.mode==="fb"?"قاعدة بيانات مشتركة":S.mode==="db"?"بيانات مشتركة":"حفظ محلي"}</span><span class="muted small">العام ${esc(S.year)}</span></div></nav>
    <main id="main">${inner}</main></div>`;
 }
 function userMenu(){
@@ -504,11 +624,13 @@ function userMenu(){
   modal("الحساب",`<p><b>${esc(u.name)}</b><br><span class="muted">${esc(roleLabel(u))}${u.uname?` · اسم المستخدم: <span dir="ltr">${esc(u.uname)}</span>`:""}</span></p>
    ${acc?`<div class="fields"><label class="f">كلمة المرور الحالية<input type="password" id="pw-old" autocomplete="current-password"></label><label class="f">كلمة المرور الجديدة<input type="password" id="pw-new" autocomplete="new-password"></label></div><button class="btn" id="pw-save" style="margin-top:8px">تغيير كلمة المرور</button>`:""}`,
    [{t:"تسجيل الخروج",cls:"danger",fn:()=>doLogout()}]);
-  const b=$("#pw-save"); if(b) b.onclick=async()=>{ const a=S.root.accounts.find(x=>"u:"+x.u.toLowerCase()===u.key); const o=$("#pw-old").value, n=$("#pw-new").value;
+  const b=$("#pw-save"); if(b&&S.mode==="fb"){ b.onclick=async()=>{ const o=$("#pw-old").value, n=$("#pw-new").value; if(n.length<4){ toast("كلمة المرور الجديدة قصيرة"); return; }
+      try{ const cu=FB.auth.currentUser; await cu.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(cu.email,fbPass(o))); await cu.updatePassword(fbPass(n)); logAct("تغيير كلمة المرور",u.name); toast("تم تغيير كلمة المرور"); }catch(e){ toast(fbErr(e)); } }; }
+  else if(b) b.onclick=async()=>{ const a=S.root.accounts.find(x=>"u:"+x.u.toLowerCase()===u.key); const o=$("#pw-old").value, n=$("#pw-new").value;
     if(!a||await sha(a.u.toLowerCase()+"|"+o)!==a.h){ toast("كلمة المرور الحالية غير صحيحة"); return; } if(n.length<4){ toast("كلمة المرور الجديدة قصيرة جدًا"); return; }
     a.h=await sha(a.u.toLowerCase()+"|"+n); await persistRoot(); logAct("تغيير كلمة المرور",u.name); toast("تم تغيير كلمة المرور"); };
 }
-function doLogout(){ if(S.view==="form"&&F&&F._dirty){confirmBox("ستفقد التعديلات غير المحفوظة. خروج؟",()=>{F=null;doLogout()},"خروج");return;} logAct("تسجيل خروج",""); CAL.open=null; S.user=null; lsSet("hamza-sess",null); render(); }
+function doLogout(){ if(S.view==="form"&&F&&F._dirty){confirmBox("ستفقد التعديلات غير المحفوظة. خروج؟",()=>{F=null;doLogout()},"خروج");return;} logAct("تسجيل خروج",""); CAL.open=null; S.user=null; lsSet("hamza-sess",null); if(S.mode==="fb"){ FB.auth.signOut(); return; } render(); }
 function updateMast(){}
 function go(view,arg){ if(view==="form"&&RO()){ toast("هذا العام مؤرشف للاطلاع فقط؛ بدّل إلى العام الحالي لتسجيل زيارة"); return; } if(S.view==="form"&&view!=="form"&&F&&F._dirty){ confirmBox("لديك تعديلات غير محفوظة في الاستمارة. هل تريد المغادرة دون حفظ؟",()=>{F=null;go(view,arg)},"مغادرة"); return; } if(view!=="form") F=null; if(view==="calib"&&S.view!=="calib") CAL.open=null; S.view=view; S.arg=arg||null; lsSet("hamza-sess",{key:S.user.key,view}); render(); window.scrollTo(0,0); }
 function render(){
@@ -539,10 +661,11 @@ function bindPer(){ const p=$("#per"); if(p) p.onchange=()=>{PER=p.value;lsSet("
 let LG={role:null,fails:0,until:0};
 function loginView(){
   const head=`<div class="hero"><div class="logo">${logoHTML()}</div><div><div class="eyebrow">${esc(S.cfg.school)}</div><h1>نظام الزيارات الصفية</h1><p class="muted" style="margin:0">وفق استمارة الإشراف على أداء معلّم المعتمدة</p><label class="row small" style="margin-top:6px">العام الأكاديمي ${yearSelect("lg-yr")}</label></div></div>`;
+  if(S.mode==="fb"&&S.fbLoading) return `<div class="login">${head}<div class="card" style="max-width:460px"><p class="muted">جارٍ الاتصال بقاعدة البيانات…</p></div></div>`;
   if(acctMode()) return `<div class="login">${head}<div class="card" style="max-width:460px"><h3 style="margin-bottom:10px">تسجيل الدخول</h3>
    <form id="lg-form" autocomplete="on"><div class="grid" style="gap:10px"><label class="f">اسم المستخدم<input id="lg-u" autocomplete="username" dir="ltr" required></label><label class="f">كلمة المرور<input id="lg-p" type="password" autocomplete="current-password" dir="ltr" required></label></div>
    <div class="row" style="margin-top:12px"><button class="btn pri" type="submit">دخول</button><span class="small" id="lg-msg" style="color:var(--l4)"></span></div></form>
-   <p class="muted small" style="margin:12px 0 0">اسم المستخدم هو الجزء الأول من البريد الوزاري. لنسيان كلمة المرور تواصل مع مدير النظام.</p></div></div>`;
+   <p class="muted small" style="margin:12px 0 0">اسم المستخدم هو الجزء الأول من البريد الوزاري. لنسيان كلمة المرور تواصل مع مدير النظام.</p>${S.mode==="fb"?`<p class="small" style="margin:10px 0 0"><a href="#" id="lg-boot">الإعداد الأول: إنشاء حساب مدير النظام</a></p>`:""}</div></div>`;
   const us=users(); const opts = LG.role? us.filter(u=>u.role===LG.role):[];
   const roleCards=[["principal","مدير المدرسة","اطلاع ومتابعة وتسجيل لجميع الفئات"],["deputy","النائب الأكاديمي","تقييم جميع المعلمين والمنسقين"],["coord","منسق القسم","زيارة معلمي القسم وتوثيق زيارات الموجه"],["teacher","المعلم","الاطلاع على زياراته والتأمل الذاتي وخطته"]];
   return `<div class="login">${head}
@@ -557,6 +680,11 @@ function loginView(){
 function bindLogin(){
   const ly=$("#lg-yr"); if(ly) ly.onchange=()=>{ setYear(ly.value); render(); };
   const fm=$("#lg-form");
+  const bt=$("#lg-boot"); if(bt) bt.onclick=e=>{ e.preventDefault(); modal("الإعداد الأول",`<p class="small">يُستخدم مرة واحدة فقط لإنشاء أول حساب «مدير نظام». بعدها تُرفع بقية الحسابات من ملف المستخدمين.</p><div class="fields"><label class="f">الاسم<input id="bs-n" value="تامر عمار"></label><label class="f">اسم المستخدم<input id="bs-u" dir="ltr" value="admin"></label><label class="f">كلمة المرور<input id="bs-p" type="password" dir="ltr"></label></div>`,
+    [{t:"إنشاء",cls:"pri",fn:async bg=>{ const u=$("#bs-u",bg).value.trim(), p=$("#bs-p",bg).value, n=$("#bs-n",bg).value.trim(); if(!/^[a-z0-9._-]+$/i.test(u)||p.length<4||!n){ toast("اسم مستخدم إنجليزي، وكلمة مرور 4 أحرف فأكثر"); return false; }
+      try{ await fbBootstrap(u,p,n); toast("أُنشئ حساب مدير النظام"); }catch(e){ toast(e.message||fbErr(e)); return false; } }}]); };
+  if(fm&&S.mode==="fb"){ fm.addEventListener("submit",async e=>{ e.preventDefault(); const msg=$("#lg-msg"); msg.textContent="جارٍ الدخول…";
+    try{ await fbLogin($("#lg-u").value.trim(),$("#lg-p").value); msg.textContent=""; logAct("تسجيل دخول",""); }catch(err){ msg.textContent=fbErr(err); } }); return; }
   if(fm){ fm.addEventListener("submit",async e=>{ e.preventDefault(); const msg=$("#lg-msg");
     if(Date.now()<LG.until){ msg.textContent=`محاولات كثيرة؛ انتظر ${Math.ceil((LG.until-Date.now())/1000)} ثانية.`; return; }
     const un=$("#lg-u").value.trim().toLowerCase().replace(/@.*$/,""); const pw=$("#lg-p").value;
@@ -2027,11 +2155,11 @@ function settingsTabs(){
   return `<div class="pill-tabs">${tabs.map(([k,t])=>`<button data-stab="${k}" aria-pressed="${STAB===k}">${t}</button>`).join("")}</div>`;
 }
 function usersView(){
-  const acc=S.root.accounts||[]; const P=S.root.perms||DEFAULT_PERMS; const roles=["principal","deputy","coord","teacher"];
+  const acc=ACC(); const P=S.root.perms||DEFAULT_PERMS; const roles=["principal","deputy","coord","teacher"];
   const rows=acc.slice().sort((a,b)=>["admin","principal","deputy","coord","teacher"].indexOf(a.role)-["admin","principal","deputy","coord","teacher"].indexOf(b.role)||String(a.dept||"").localeCompare(String(b.dept||""),"ar")||a.name.localeCompare(b.name,"ar"));
   const linked=a=>{ if(a.role!=="coord"&&a.role!=="teacher") return '<span class="muted">—</span>'; const r=resolveAcct(a); return r.teacherId?'<span class="lv lv1">مرتبط</span>':'<span class="lv lv4" title="لا يطابق أي معلم في كادر العام الحالي">غير مرتبط</span>'; };
   return `<div class="card"><div class="row" style="justify-content:space-between"><div><h3>الحسابات</h3><p class="muted small" style="margin:2px 0 0">${acc.length?`${acc.length} حسابًا · الدخول باسم المستخدم وكلمة المرور (مخزّنة مشفّرة).`:"لم تُرفع الحسابات بعد؛ النظام يعمل باختيار الصفة."}</p></div>
-   <div class="row"><label class="btn gold" style="cursor:pointer">رفع ملف المستخدمين (Excel)<input type="file" id="u-file" accept=".xlsx,.xls,.csv" hidden></label><button class="btn" id="u-tpl">نموذج الملف</button><button class="btn" id="u-add">+ حساب</button></div></div>
+   <div class="row"><label class="btn gold" style="cursor:pointer">رفع ملف المستخدمين (Excel)<input type="file" id="u-file" accept=".xlsx,.xls,.csv" hidden></label><button class="btn" id="u-tpl">نموذج الملف</button><button class="btn" id="u-add">+ حساب</button>${S.mode==="fb"?`<button class="btn" id="u-relink">تحديث الربط بالكادر</button><button class="btn" id="u-rules">قواعد الحماية</button>`:""}</div></div>
    ${acc.length?`<div class="tbl-wrap" style="margin-top:10px"><table><thead><tr><th>الاسم</th><th>اسم المستخدم</th><th>الوظيفة</th><th>المادة</th><th class="c">الربط بالكادر</th><th class="c">آخر دخول</th><th class="c">الحالة</th><th></th></tr></thead><tbody>
    ${rows.map(a=>`<tr><td>${esc(a.name)}</td><td dir="ltr" class="small">${esc(a.u)}</td><td><select class="u-role" data-u="${esc(a.u)}" ${a.u===S.user.uname?"disabled":""}>${Object.entries(ROLE_NAMES).map(([k,v])=>`<option value="${k}" ${a.role===k?"selected":""}>${v}</option>`).join("")}</select></td><td class="small">${esc(a.dept||"")}</td><td class="c">${linked(a)}</td><td class="c small num">${a.last?fmtD(a.last.slice(0,10)):"—"}</td><td class="c">${a.disabled?'<span class="lv lv4">معطّل</span>':'<span class="lv lv1">فعّال</span>'}</td>
    <td class="row" style="flex-wrap:nowrap"><button class="btn sm" data-upw="${esc(a.u)}">كلمة مرور</button>${a.u!==S.user.uname?`<button class="btn sm" data-udis="${esc(a.u)}">${a.disabled?"تفعيل":"تعطيل"}</button><button class="btn sm danger" data-udel="${esc(a.u)}">حذف</button>`:""}</td></tr>`).join("")}</tbody></table></div>`:""}</div>
@@ -2072,7 +2200,33 @@ function acctDialog(a){
      else { const x=S.root.accounts.find(x=>x.u===a.u); x.h=await sha(x.u+"|"+p); logAct("إعادة تعيين كلمة مرور",x.name); }
      await persistRoot(); toast("تم الحفظ"); render(); }}]);
 }
-function bindUsers(){
+function bindUsersFB(){
+  const f=$("#u-file"); if(f) f.onchange=async e=>{ const file=e.target.files[0]; e.target.value=""; if(!file) return;
+    try{ const {out,bad}=acctsFromRows(await readRows(file)); const by={}; out.forEach(a=>by[a.role]=(by[a.role]||0)+1);
+      modal("استيراد المستخدمين إلى Firebase",`<p>قُرئ <b>${out.length}</b> حسابًا: ${Object.entries(by).map(([r,n])=>`${ROLE_NAMES[r]} ${n}`).join("، ")}.</p>${bad.length?`<p class="note">تُجوهلت صفوف ناقصة: ${bad.join("، ")}</p>`:""}
+       <p class="small">يُنشأ لكل مستخدم حساب دخول في Firebase وملف صلاحيات، ويُربط المعلم والمنسق بالكادر الحالي. الحسابات الموجودة تُحدَّث صلاحياتها فقط ولا تتغير كلمات مرورها. قد يستغرق ذلك دقيقة.</p><p class="small" style="color:var(--l4)">احذف ملف كلمات المرور بعد الرفع.</p>`,
+       [{t:"استيراد",cls:"pri",fn:async()=>{ const b=busy("إنشاء الحسابات"); try{ const r=await fbImportUsers(out,(i,n)=>b.set(i,n,`${i+1} من ${n}`));
+          out.filter(a=>a.role==="coord").forEach(a=>{ const x=resolveAcct(a); if(x.teacherId&&x.deptId){ const d=S.cfg.depts.find(d=>d.id===x.deptId); if(d) d.coordEmail=x.email; } }); await saveCfg();
+          logAct("استيراد المستخدمين",`${r.ok} حسابًا`); b.done(); modal("نتيجة الاستيراد",`<p>تم: <b>${r.ok}</b> حسابًا.</p>${r.fails.length?`<p class="note">تعذّر ${r.fails.length}:</p><ul class="list-plain small">${r.fails.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:""}`); }catch(e){ b.done(); toast(fbErr(e)); } }}]);
+    }catch(err){ toast(err.message||"تعذّرت قراءة الملف"); } };
+  const t=$("#u-tpl"); if(t) t.onclick=()=>saveFile("نموذج-المستخدمين.csv","\ufeff"+["الاسم,المادة,الوظيفة,اسم المستخدم,كلمة المرور","اسم المعلم,الرياضيات,معلم,y.albostani0101,كلمة-مرور"].join("\r\n"),"text/csv");
+  const ad=$("#u-add"); if(ad) ad.onclick=()=>modal("إضافة حساب",`<div class="fields"><label class="f">الاسم<input id="ad-n"></label><label class="f">اسم المستخدم<input id="ad-u" dir="ltr"></label><label class="f">الوظيفة<select id="ad-r">${Object.entries(ROLE_NAMES).map(([k,v])=>`<option value="${k}">${v}</option>`).join("")}</select></label><label class="f">المادة<select id="ad-d"><option value="">—</option>${S.cfg.depts.map(d=>`<option>${esc(d.name)}</option>`).join("")}</select></label><label class="f">كلمة المرور<input id="ad-p" dir="ltr"></label></div>`,
+    [{t:"حفظ",cls:"pri",fn:async bg=>{ const a={u:$("#ad-u",bg).value.trim().toLowerCase(),name:$("#ad-n",bg).value.trim(),role:$("#ad-r",bg).value,dept:$("#ad-d",bg).value}; const p=$("#ad-p",bg).value;
+      if(!/^[a-z0-9._-]+$/.test(a.u)||!a.name||p.length<3){ toast("أكمل الاسم واسم مستخدم إنجليزي وكلمة مرور"); return false; } try{ await fbUpsertUser(a,p); logAct("إضافة حساب",a.name); toast("أُضيف الحساب"); }catch(e){ toast(e.message||fbErr(e)); return false; } }}]);
+  const rl=$("#u-relink"); if(rl) rl.onclick=async()=>{ try{ const n=await fbRelinkUsers(); toast(`حُدّث ربط ${n} حسابًا بالكادر`); }catch(e){ toast(fbErr(e)); } };
+  const ru=$("#u-rules"); if(ru) ru.onclick=()=>{ const bg=modal("قواعد الحماية لـ Firestore",`<p class="small">انسخها والصقها في Firebase ← Firestore Database ← Rules ثم Publish.</p><textarea readonly dir="ltr" style="min-height:300px;font-family:monospace;font-size:12px">${esc(FB_RULES)}</textarea><button class="btn pri" id="ru-c" style="margin-top:8px">نسخ القواعد</button>`); $("#ru-c",bg).onclick=()=>copyText(FB_RULES); };
+  const find=u=>(S.fbUsers||[]).find(x=>x.u===u);
+  $$("[data-upw]").forEach(b=>b.onclick=()=>modal("كلمة المرور",`<p class="small">لأسباب أمنية لا يمكن لمدير النظام تغيير كلمة مرور مستخدم آخر من داخل الصفحة. يغيّرها المستخدم بنفسه من قائمة الحساب. ولإعادة تعيينها: احذف الحساب من Firebase ← Authentication ← Users، ثم أضفه هنا من «+ حساب» بكلمة مرور جديدة.</p>`));
+  $$("[data-udis]").forEach(b=>b.onclick=async()=>{ const x=find(b.dataset.udis); try{ await FB.db.doc("users/"+x.uid).update({disabled:!x.disabled}); logAct(x.disabled?"تفعيل حساب":"تعطيل حساب",x.name); }catch(e){ toast(fbErr(e)); } });
+  $$("[data-udel]").forEach(b=>b.onclick=()=>confirmBox("حذف صلاحيات هذا الحساب؟ (يبقى حساب الدخول في Firebase دون أي صلاحية)",async()=>{ const x=find(b.dataset.udel); try{ await FB.db.doc("users/"+x.uid).delete(); logAct("حذف حساب",x.name); }catch(e){ toast(fbErr(e)); } },"حذف"));
+  $$(".u-role").forEach(s=>s.onchange=async()=>{ const x=find(s.dataset.u); if(x.role==="admin"&&s.value!=="admin"&&(S.fbUsers||[]).filter(a=>a.role==="admin"&&!a.disabled).length<2){ toast("يجب أن يبقى مدير نظام واحد على الأقل"); s.value="admin"; return; }
+    try{ await FB.db.doc("users/"+x.uid).update({role:s.value}); logAct("تغيير وظيفة",`${x.name} ← ${ROLE_NAMES[s.value]}`); toast("حُدّثت الوظيفة"); }catch(e){ toast(fbErr(e)); } });
+  const ps=$("#pm-save"); if(ps) ps.onclick=async()=>{ const P={principal:[],deputy:[],coord:[],teacher:[]}; $$(".pm").forEach(c=>{ if(c.checked) P[c.dataset.r].push(c.dataset.c); }); S.root.perms=P; await persistRoot(); logAct("تعديل مصفوفة الصلاحيات",""); toast("حُفظت الصلاحيات"); render(); };
+  const pr=$("#pm-reset"); if(pr) pr.onclick=()=>confirmBox("استعادة الصلاحيات الافتراضية؟",async()=>{ S.root.perms=clone(DEFAULT_PERMS); await persistRoot(); render(); },"استعادة");
+  const lq=$("#lg-q"); if(lq) lq.onchange=()=>{ S._logq=lq.value; render(); };
+  const lc=$("#lg-csv"); if(lc) lc.onclick=()=>{ const q=s=>'"'+String(s??"").replace(/"/g,'""')+'"'; saveFile(`سجل-العمليات-${today()}.csv`,"\ufeff"+["الوقت,المستخدم,الدور,العملية,التفاصيل,العام",...(S.log||[]).map(e=>[e.t,e.u,ROLE_NAMES[e.r]||"",e.a,e.d,e.y].map(q).join(","))].join("\r\n"),"text/csv"); };
+}
+function bindUsers(){ if(S.mode==="fb"){ bindUsersFB(); return; }
   const f=$("#u-file"); if(f) f.onchange=async e=>{ const file=e.target.files[0]; e.target.value=""; if(!file) return;
     try{ const {out,bad}=acctsFromRows(await readRows(file)); const by={}; out.forEach(a=>by[a.role]=(by[a.role]||0)+1);
       modal("استيراد المستخدمين",`<p>قُرئ <b>${out.length}</b> حسابًا: ${Object.entries(by).map(([r,n])=>`${ROLE_NAMES[r]} ${n}`).join("، ")}.</p>${bad.length?`<p class="note">تُجوهلت صفوف ناقصة: ${bad.join("، ")}</p>`:""}
