@@ -106,6 +106,7 @@ html.side-mini .side-mini-b svg{transform:scaleX(-1)}
 .burger{display:none;background:transparent;border:1px solid rgba(255,255,255,.4);color:var(--on-maroon);border-radius:8px;width:38px;height:34px;place-items:center;cursor:pointer;flex:none}
 .side-bg{display:none}
 .bnav{display:none}
+.sig-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:10px;margin-top:8px}.sig-box{border:1px solid var(--line);border-radius:8px;padding:10px;text-align:center;background:var(--surface)}.sig-img{height:74px;display:grid;place-items:center;margin:6px 0;background:#fff;border-radius:6px;border:1px dashed var(--line)}.sig-img img{max-height:66px;max-width:100%}
 .ws-list{display:grid;gap:10px;margin-top:12px}.ws{border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--surface)}
 .ws-h{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px}.ws-n{width:30px;height:30px;border-radius:50%;background:var(--maroon);color:#fff;display:grid;place-items:center;font-weight:700;flex:none}
 .ws-g{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:10px;font-size:.88rem}.ws-k{display:block;font-size:.74rem;color:var(--gold-ink);font-weight:700;margin-bottom:2px}
@@ -1430,6 +1431,14 @@ async function buildZip(){
   }catch(e){ toast(e.message||"تعذّر التصدير"); } finally{ b.done(); }
 }
 /* ===== تقرير المعلم وملف زياراته ===== */
+function sigDeputy(){ const d=S.cfg.deputies||[]; return d[+(S.cfg.signDep||0)]||d[0]||{}; }
+const SIG_LEAD = ()=>{ const sg=S.cfg.sigs||{}; return [{role:"النائب الأكاديمي",name:sigDeputy().name,img:sg.dep},{role:"مدير المدرسة",name:S.cfg.principal.name,img:sg.prin}]; };
+function sigBlock(people,title){ const sg=S.cfg.sigs||{}; const w=Math.floor(100/people.length);
+  return `<div class="pdf-keep" style="margin-top:18px">${title?`<div style="font-weight:bold;color:${OFF.maroon};margin-bottom:4px">${title}</div>`:""}<table width="100%" style="border-collapse:collapse;table-layout:fixed"><tr>${people.map(p=>`${TH("text-align:center;width:"+w+"%")}${esc(p.role)}</th>`).join("")}</tr>
+   <tr>${people.map(p=>`${TD("text-align:center;height:66px;vertical-align:middle")}${p.img?`<img src="${p.img}" style="max-height:58px;max-width:160px">`:`<span style="color:#bbb;font-size:10px">التوقيع</span>`}</td>`).join("")}</tr>
+   <tr>${people.map(p=>`${TD("text-align:center;font-size:11.5px;font-weight:bold")}${esc(p.name||"")}</td>`).join("")}</tr></table>
+   <table width="100%" style="margin-top:4px"><tr><td style="font-size:10.5px;color:#777">تاريخ الاعتماد: <span dir="ltr">${fmtD(today())}</span></td><td style="text-align:left">${sg.stamp?`<img src="${sg.stamp}" style="height:78px">`:""}</td></tr></table></div>`; }
+function withSig(blocks,title){ const out=blocks.slice(); if(out.length) out[out.length-1]+=wrapR(sigBlock(SIG_LEAD(),title||"اعتماد التقرير")); return out; }
 function teacherReport(tid){
   const t=T(tid)||{}; const vs=VIS().filter(v=>v.teacherId===tid&&counted(v)).sort((a,b)=>(a.date||"").localeCompare(b.date||""));
   const avg=avgOf(vs); const lab=labelOf(avg); const vis=new Set(vs.map(v=>v.visitorName)).size; const rel=vs.length>=2&&vis>=2?"موثوقة":vs.length?"قراءة أولية":"—";
@@ -1457,7 +1466,7 @@ function teacherReport(tid){
    ${secTitle("خطة التطوير المهني ومتابعة التوصيات")}
    <table width="100%" style="border-collapse:collapse"><tr>${TH()}الإجراء</th>${TH()}المؤشر</th>${TH()}الموعد</th>${TH()}المتابعة في زيارة لاحقة</th>${TH()}تقدّم المعلم</th>${TH()}الحالة</th></tr>
    ${pds.map(p=>`<tr>${TD("font-size:11px")}${p.priority?"<b>[أولوية]</b> ":""}${esc(p.text)}</td>${TD("font-size:10.5px")}${p.ind!=null&&IND[p.ind]?`${p.ind+1}. ${esc(IND[p.ind].t)}`:"—"}</td>${TD()}<span dir="ltr">${fmtD(p.due)}</span></td>${TD("font-size:10.5px")}${p.follow?esc(FOLLOW[p.follow]):"—"}</td>${TD("font-size:10.5px")}${esc(p.progress||"")}</td>${TD("font-weight:bold")}${PD_ST[p.status]||""}</td></tr>`).join("")||`<tr>${TD()}لا توجد إجراءات</td></tr>`}</table>
-   <table width="100%" style="border-collapse:collapse;margin-top:16px"><tr>${["المعلّم","منسق القسم","النائب الأكاديمي","مدير المدرسة"].map(x=>`${TH("text-align:center")}${x}</th>`).join("")}</tr><tr>${[t.name,c.name||"",(S.cfg.deputies[0]||{}).name||"",S.cfg.principal.name].map(n=>`${TD("text-align:center;height:46px;vertical-align:bottom;font-size:11px")}${esc(n||"")}</td>`).join("")}</tr></table>`);
+   ${sigBlock([{role:"المعلّم",name:t.name},{role:"منسق القسم",name:c.name||""},...SIG_LEAD()])}`);
   return [head,matrix,sn].filter(Boolean);
 }
 async function downloadTeacherReport(tid){
@@ -1553,7 +1562,7 @@ function reportBook(vs,withCover){
   const by={}; vs.forEach(v=>{const k=v.visitorRole+"|"+v.visitorName;(by[k]=by[k]||[]).push(v)});
   out.push(wrapR(secTitle("تحليل الزائرين","يكشف تفاوت التشدد أو التساهل في التقدير")+`<table width="100%" style="border-collapse:collapse"><tr>${TH()}الزائر</th>${TH()}الصفة</th>${TH("text-align:center")}الزيارات</th>${TH("text-align:center")}متوسط نسبه</th>${TH("text-align:center")}«مستكملة»</th>${TH("text-align:center")}«غير متوفرة»</th></tr>
    ${Object.entries(by).sort((a,b)=>(ROLE_ORDER[a[0].split("|")[0]]-ROLE_ORDER[b[0].split("|")[0]])).map(([k,l])=>{const [r,n]=k.split("|");let c1=0,c4=0,t=0;l.map(scoreOf).forEach(s=>{c1+=s.cnt[1];c4+=s.cnt[4];t+=s.n});const a=avgOf(l);return `<tr>${TD("font-weight:bold")}${esc(n)}</td>${TD()}${ROLES[r]}</td>${TD("text-align:center")}${l.length}</td>${pcell(a)}${TD("text-align:center")}${pct(t?c1/t*100:null)}</td>${TD("text-align:center")}${pct(t?c4/t*100:null)}</td></tr>`}).join("")}</table>`));
-  return out;
+  return withSig(out);
 }
 
 function mailParts(v){
@@ -2065,7 +2074,7 @@ function scorecardHTML(tid){
    ${secTitle("أدلة الاعتماد المدرسي (QNSA)","مصدر الدليل من النظام")}
    <table width="100%" style="border-collapse:collapse"><tr>${TH()}المعيار / المؤشر</th>${TH()}الدليل من نظام الزيارات</th>${TH("text-align:center")}القيمة</th>${TH()}المرجع</th></tr>
    ${qn.map(q=>{const v=evValue(q.src,sc);return `<tr>${TD("font-weight:bold")}${esc(q.std)}</td>${TD("font-size:10.5px")}${esc(EV_SRC[q.src]||"")}</td>${pcell(v)}${TD("font-size:10px;color:#777")}${q.src==="results"?esc(sc.as||"—"):q.src==="calib"?"جلسات المعايرة":`<span dir="ltr">${sc.vs.map(visitRef).join(" · ")||"—"}</span>`}</td></tr>`}).join("")}</table>
-   <table width="100%" style="border-collapse:collapse;margin-top:14px"><tr>${["المعلّم","منسق القسم","النائب الأكاديمي","مدير المدرسة"].map(x=>`${TH("text-align:center")}${x}</th>`).join("")}</tr><tr>${[t.name,c.name||"",(S.cfg.deputies[0]||{}).name||"",S.cfg.principal.name].map(n=>`${TD("text-align:center;height:44px;vertical-align:bottom;font-size:11px")}${esc(n||"")}</td>`).join("")}</tr></table>`)];
+   ${sigBlock([{role:"المعلّم",name:t.name},{role:"منسق القسم",name:c.name||""},...SIG_LEAD()])}`)];
 }
 async function downloadScorecard(tid){ const t=T(tid)||{}; const b=busy("إنشاء بطاقة الأداء السنوية");
   try{ const pdf=await htmlListToPdf(scorecardHTML(tid),`Annual scorecard - ${S.year}`); await saveFile(`بطاقة-الأداء-${fsafe(t.name).replace(/\s+/g,"-")}-${S.year.replace("/","-")}.pdf`,pdf.output("blob"),"application/pdf"); logAct("بطاقة أداء سنوية",t.name); }
@@ -2214,7 +2223,11 @@ function staffSettingsView(){
    <label class="f">مدير المدرسة<input id="s-pn" value="${esc(c.principal.name)}"></label><label class="f">بريد المدير<input id="s-pe" value="${esc(c.principal.email)}" dir="ltr"></label>
    ${c.deputies.map((d,i)=>`<label class="f">النائب الأكاديمي ${i+1}<input class="s-dn" data-i="${i}" value="${esc(d.name)}"></label><label class="f">البريد<input class="s-de" data-i="${i}" value="${esc(d.email)}" dir="ltr"></label>`).join("")}
   </div><div class="row" style="margin-top:10px"><button class="btn sm" id="s-adddep">+ نائب أكاديمي</button><label class="btn sm" style="cursor:pointer">رفع شعار المدرسة<input type="file" id="s-logo" accept="image/*" hidden></label>${c.logo?`<button class="btn sm" id="s-dellogo">إزالة الشعار</button>`:""}<label class="btn sm" style="cursor:pointer">تغيير ترويسة التقارير<input type="file" id="s-banner" accept="image/*" hidden></label>${c.banner?`<button class="btn sm" id="s-delbanner">الترويسة الافتراضية</button>`:""}</div>
-  <div style="margin-top:10px;border:1px solid var(--line);border-radius:8px;padding:8px;background:#fff;text-align:center"><img src="${esc(c.banner||SCHOOL_BANNER)}" alt="ترويسة التقارير" style="max-width:100%;height:56px;object-fit:contain"><div class="small muted">تظهر هذه الترويسة أعلى كل صفحة في التقارير وملفات PDF وWord المصدّرة.</div></div></div>
+  <div style="margin-top:10px;border:1px solid var(--line);border-radius:8px;padding:8px;background:#fff;text-align:center"><img src="${esc(c.banner||SCHOOL_BANNER)}" alt="ترويسة التقارير" style="max-width:100%;height:56px;object-fit:contain"><div class="small muted">تظهر هذه الترويسة أعلى كل صفحة في التقارير وملفات PDF وWord المصدّرة.</div></div>
+  <h3 style="margin:16px 0 6px">توقيعات اعتماد التقارير</h3><p class="small muted" style="margin:0 0 8px">تظهر في التقرير الإحصائي الشامل، وتقرير احتياجات التطوير، وتقارير المعلمين وبطاقات الأداء السنوية. التوقيع المصوّر والختم اختياريان؛ بدونهما يظهر الاسم مع مكان للتوقيع اليدوي.</p>
+  <div class="fields">${(c.deputies||[]).length>1?`<label class="f">النائب الأكاديمي الموقّع<select id="s-signdep">${c.deputies.map((d,i)=>`<option value="${i}" ${+(c.signDep||0)===i?"selected":""}>${esc(d.name||("النائب "+(i+1)))}</option>`).join("")}</select></label>`:""}</div>
+  <div class="sig-grid">${[["dep","توقيع النائب الأكاديمي",((c.deputies||[])[+(c.signDep||0)]||{}).name],["prin","توقيع مدير المدرسة",c.principal.name],["stamp","ختم المدرسة",""]].map(([k,t,n])=>`<div class="sig-box"><b class="small">${t}</b>${n?`<div class="muted small">${esc(n)}</div>`:""}<div class="sig-img">${(c.sigs||{})[k]?`<img src="${esc(c.sigs[k])}" alt="${t}">`:`<span class="muted small">لم يُرفع</span>`}</div><div class="row" style="justify-content:center"><label class="btn sm" style="cursor:pointer">رفع صورة<input type="file" accept="image/*" data-sig="${k}" hidden></label>${(c.sigs||{})[k]?`<button class="btn sm danger" data-sigdel="${k}">حذف</button>`:""}</div></div>`).join("")}</div>
+  <p class="small muted" style="margin-top:6px">يُفضّل صورة توقيع بخلفية بيضاء أو شفافة (PNG). أي مستخدم لديه صلاحية التصدير سيُخرج التقارير بهذه التوقيعات، فارفعها فقط إذا كان ذلك معتمدًا في المدرسة.</p></div>
   <div class="card"><h3 style="margin-bottom:10px">المستهدفات والحساب</h3><div class="fields">
    ${["coord","deputy","principal","sup"].map(r=>`<label class="f">زيارات ${ROLES[r]} للمعلم سنويًا<input type="number" min="0" class="s-tg" data-r="${r}" value="${c.targets[r]}"></label>`).join("")}
    ${LABELS.slice(0,3).map((l,i)=>`<label class="f">حد «${l}» (%)<input type="number" step="1" min="0" max="100" class="s-th" data-i="${i}" value="${c.th[i]}"></label>`).join("")}
@@ -2343,6 +2356,11 @@ function bindStaffSettings(){
   const dl=$("#s-dellogo"); if(dl) dl.onclick=()=>{readSettings(); SD.logo=""; keep();};
   const bn=$("#s-banner"); if(bn) bn.onchange=e=>{ const f=e.target.files[0]; if(!f) return; const img=new Image(); const r=new FileReader(); r.onload=()=>{ img.onload=()=>{ const s=Math.min(1,1000/img.width); const cv=document.createElement("canvas"); cv.width=Math.round(img.width*s); cv.height=Math.round(img.height*s); const g=cv.getContext("2d"); g.fillStyle="#fff"; g.fillRect(0,0,cv.width,cv.height); g.drawImage(img,0,0,cv.width,cv.height); readSettings(); SD.banner=cv.toDataURL("image/jpeg",0.88); keep(); toast("أُضيفت الترويسة – احفظ الإعدادات"); }; img.src=r.result; }; r.readAsDataURL(f); };
   const db=$("#s-delbanner"); if(db) db.onclick=()=>{ readSettings(); SD.banner=""; keep(); };
+  const sdp=$("#s-signdep"); if(sdp) sdp.onchange=()=>{ readSettings(); SD.signDep=+sdp.value; keep(); };
+  $$("[data-sig]").forEach(inp=>inp.onchange=e=>{ const f=e.target.files[0]; if(!f) return; const k=inp.dataset.sig; const img=new Image(); const r=new FileReader(); r.onload=()=>{ img.onload=()=>{ const s=Math.min(1,420/Math.max(img.width,img.height)); const cv=document.createElement("canvas"); cv.width=Math.round(img.width*s); cv.height=Math.round(img.height*s); const g=cv.getContext("2d"); g.drawImage(img,0,0,cv.width,cv.height);
+      try{ const d=g.getImageData(0,0,cv.width,cv.height); for(let i=0;i<d.data.length;i+=4){ if(d.data[i]>235&&d.data[i+1]>235&&d.data[i+2]>235) d.data[i+3]=0; } g.putImageData(d,0,0); }catch(_){}
+      readSettings(); SD.sigs=Object.assign({},SD.sigs||{},{[k]:cv.toDataURL("image/png")}); keep(); toast("أُضيفت الصورة – احفظ الإعدادات"); }; img.src=r.result; }; r.readAsDataURL(f); });
+  $$("[data-sigdel]").forEach(x=>x.onclick=()=>{ readSettings(); const s=Object.assign({},SD.sigs||{}); delete s[x.dataset.sigdel]; SD.sigs=s; keep(); });
   if($("#s-pset")) $("#s-pset").onclick=async()=>{ readSettings(); const k=$("#s-pu").value; const v=$("#s-pv").value.trim(); if(v) SD.pins[k]=await sha(v); else delete SD.pins[k]; S.cfg.pins=clone(SD.pins); try{ await saveCfg(); toast(v?"عُيّن الرمز":"أُلغي الرمز"); keep(); }catch(e){} };
   $("#s-exp").onclick=()=>saveFile(`نسخة-الزيارات-${today()}.json`,JSON.stringify({app:"hamza-visits",v:1,exportedAt:new Date().toISOString(),cfg:S.root,visits:S.visits,pd:S.pd},null,1),"application/json");
   $("#s-imp").onchange=e=>{ const f=e.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ try{ const d=JSON.parse(r.result); if(d.app!=="hamza-visits") throw 0; confirmBox(`استيراد ${Object.keys(d.visits||{}).length} زيارة و${Object.keys(d.pd||{}).length} إجراء تطوير ودمجها مع البيانات الحالية (السجلات ذات المعرّف نفسه تُستبدل)، مع استبدال الإعدادات؟`,async()=>{ if(d.cfg){ const inc=migrate(d.cfg); Object.entries(inc.years).forEach(([y,yr])=>{ S.root.years[y]=yr; }); ["school","logo","pins","th","feedbackHours"].forEach(k=>{ if(inc[k]!==undefined&&(k!=="logo"||inc[k])) S.root[k]=inc[k]; }); if(!S.root.baseYear) S.root.baseYear=inc.baseYear; d.visits&&Object.values(d.visits).forEach(v=>{ if(!v.year) v.year=inc.baseYear; }); applyYear(); await persistRoot(); } for(const v of Object.values(d.visits||{})) await put("visits",v); for(const p of Object.values(d.pd||{})) await put("pd",p); SD=null; toast("اكتمل الاستيراد"); render(); },"استيراد"); }catch(_){ toast("الملف ليس نسخة احتياطية صالحة لهذا النظام"); } }; r.readAsText(f); };
@@ -2815,7 +2833,7 @@ function recsPdfBlocks(vs){ const d=recsData(vs,RCS.dept); const plan=recsPlan(d
     <tr>${TD("font-weight:bold")}محاور الورشة</td>${TD()}${p.focus.map(f=>"• "+esc(f.replace(/^(أوصي بـ:|يوصى)\s*/,""))).join("<br>")}</td></tr>
     <tr>${TD("font-weight:bold")}مقدّم / نموذج مقترح</td>${TD()}${p.ex.length?esc(p.ex.map(t=>t.name+" ("+t.dept+")").join("، ")):"المنسق أو الموجه التربوي"}</td></tr>
     <tr>${TD("font-weight:bold")}مؤشر النجاح</td>${TD()}${esc(p.kpi)}</td></tr><tr>${TD("font-weight:bold")}المتابعة</td>${TD()}${esc(p.follow)}</td></tr></table>`).join("")));
-  return out; }
+  return withSig(out); }
 function bindRecs(){
   const ds=$("#rc-dept"); if(ds) ds.onchange=()=>{ RCS.dept=ds.value; render(); };
   const n=$("#rc-n"); if(n) n.onchange=()=>{ RCS.n=+n.value; render(); };
