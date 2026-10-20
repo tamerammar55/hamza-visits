@@ -106,6 +106,9 @@ html.side-mini .side-mini-b svg{transform:scaleX(-1)}
 .burger{display:none;background:transparent;border:1px solid rgba(255,255,255,.4);color:var(--on-maroon);border-radius:8px;width:38px;height:34px;place-items:center;cursor:pointer;flex:none}
 .side-bg{display:none}
 .bnav{display:none}
+.imp-drop{border:2px dashed var(--line);transition:border-color .15s,background .15s}.imp-drop.on{border-color:var(--gold);background:var(--gold-soft)}
+.imp-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--surface-2);padding:8px 10px;border-radius:8px}.imp-bar select,.imp-bar input{width:auto;min-width:150px;flex:1 1 150px}
+.imp-tbl td{vertical-align:middle}.imp-tbl select,.imp-tbl input{font-size:.82rem;padding:5px 8px}tr.imp-warn td{background:color-mix(in srgb,var(--l4-bg) 45%,transparent)}
 .show-sm{display:none}
 .tbl-auto{overflow-x:auto;max-width:100%;-webkit-overflow-scrolling:touch}
 main#main{padding:22px max(18px,env(safe-area-inset-right,0px)) 60px max(18px,env(safe-area-inset-left,0px));min-width:0}
@@ -658,6 +661,7 @@ const ICONS={
  pdf:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 15h6M9 18h4"/>',
  book:'<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/>',
  gear:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-2.7-1.1l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0-1.1-2.7H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.1-2.7l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 2.7-1.1V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0 1.1 2.7H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/>',
+ upload:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5M12 3v12"/>',
  bell:'<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/>'
 };
 const ico=(k,s=18)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[k]||""}</svg>`;
@@ -675,6 +679,7 @@ const VIEWS = [
   {k:"reports",g:"التقارير",t:"التقارير والمقارنات",i:"chart",ok:()=>can("reports.view")},
   {k:"export",g:"التقارير",t:"مركز التصدير",i:"pdf",ok:()=>can("export.pdf")},
   {k:"ref",g:"النظام",t:"المرجعية والمنهجية",i:"book",ok:()=>true},
+  {k:"import",g:"النظام",t:"استيراد زيارات سابقة",i:"upload",ok:()=>!RO()&&(S.user.role==="admin"||isLead())},
   {k:"settings",g:"النظام",t:"الإعدادات",i:"gear",ok:()=>can("staff.manage")||can("users.manage")}
 ];
 const homeView = ()=>S.user&&S.user.role==="teacher"?"teacher":can("reports.view")?"dash":"list";
@@ -758,7 +763,7 @@ function render(){
   MODE=["dashAll","listAll"].includes(S.view)?"all":"mine";
   let inner="";
   try{
-    inner = ({calib:calibView,follow:followView,dash:dashView,dashAll:dashView,listAll:listView,form:formView,list:listView,visit:visitView,cover:coverView,pd:pdView,teacher:teacherView,reports:reportsView,export:exportView,ref:refView,settings:settingsView}[S.view]||dashView)();
+    inner = ({import:importView,calib:calibView,follow:followView,dash:dashView,dashAll:dashView,listAll:listView,form:formView,list:listView,visit:visitView,cover:coverView,pd:pdView,teacher:teacherView,reports:reportsView,export:exportView,ref:refView,settings:settingsView}[S.view]||dashView)();
   }catch(e){ console.error(e); inner=`<div class="empty">حدث خطأ أثناء عرض هذه الصفحة: ${esc(e.message)}</div>`; }
   app.innerHTML=shell(inner);
   const m=$(".mast"); if(m) document.documentElement.style.setProperty("--mastH",m.offsetHeight+"px");
@@ -773,7 +778,7 @@ function render(){
   $$("#main table").forEach(t=>{ if(!t.closest(".tbl-wrap,.tbl-auto,.form-sheet,.modal")){ const w=document.createElement("div"); w.className="tbl-auto"; t.parentNode.insertBefore(w,t); w.appendChild(t); } });
   const yr2=$("#yr2"); if(yr2) yr2.onchange=()=>{ const y=$("#yr"); y.value=yr2.value; navOpen(false); y.onchange(); };
   const yr=$("#yr"); if(yr) yr.onchange=()=>{ if(S.view==="form"&&F&&F._dirty){ yr.value=S.year; toast("احفظ الزيارة الحالية أولًا"); return; } F=null; SD=null; setYear(yr.value); if(S.view==="form"&&RO()) S.view=homeView(); if(S.view==="visit") S.view="list"; render(); };
-  ({calib:bindCalib,follow:bindFollow,dash:bindDash,dashAll:bindDash,listAll:bindList,form:bindForm,list:bindList,visit:bindVisit,cover:bindCover,pd:bindPd,teacher:bindTeacher,reports:bindReports,export:bindExport,settings:bindSettings,ref:()=>{}}[S.view]||(()=>{}))();
+  ({import:bindImport,calib:bindCalib,follow:bindFollow,dash:bindDash,dashAll:bindDash,listAll:bindList,form:bindForm,list:bindList,visit:bindVisit,cover:bindCover,pd:bindPd,teacher:bindTeacher,reports:bindReports,export:bindExport,settings:bindSettings,ref:()=>{}}[S.view]||(()=>{}))();
 }
 function yearSelect(id){ const R=S.root; const ys=Object.keys(R.years).sort().reverse(); return `<select id="${id}" class="yr-sel" aria-label="العام الأكاديمي">${ys.map(y=>`<option value="${esc(y)}" ${y===S.year?"selected":""}>${esc(y)}${y===R.activeYear?" (الحالي)":R.years[y].archived?" (أرشيف)":""}</option>`).join("")}</select>`; }
 function perSelect(id="per"){ return `<select id="${id}" aria-label="الفترة"><option value="year" ${PER==="year"?"selected":""}>العام الأكاديمي كاملًا</option>${S.cfg.terms.map(t=>`<option ${PER===t.name?"selected":""}>${esc(t.name)}</option>`).join("")}</select>`; }
@@ -2374,6 +2379,298 @@ function bindUsers(){ if(S.mode==="fb"){ bindUsersFB(); return; }
 
 function settingsView(){ const tabs=settingsTabs(); return `<div class="sec-head"><div><h2>الإعدادات</h2><p>الكادر والأعوام، والمستخدمون والصلاحيات، وسجل العمليات.</p></div></div>${tabs}${STAB==="staff"?staffSettingsView():STAB==="score"?scoreSettingsView():STAB==="users"?usersView():logView()}`; }
 function bindSettings(){ $$("[data-stab]").forEach(b=>b.onclick=()=>{ STAB=b.dataset.stab; SD=null; render(); }); if(STAB==="staff") bindStaffSettings(); else if(STAB==="score") bindScoreSettings(); else bindUsers(); }
+/* ============ استيراد زيارات النظام السابق (Excel / PDF / مجلد / ZIP) ============ */
+const OLD_VOCAB_RAW = "آلية أسئلة أساليب أسفل أعلاه أعلى أعمال أفضل ألوان أمثلة أولا إدخال إدخالات إرسال إرساله إرسالها إعلان إغلاق إكسل إلا إلكتروني إلكترونية إلى إليه إليها إيميل إيميلاتهم ابوالنور اخترالقسم اختلاف اسلام اسماعيل اكسل الآراء الأحد الأخرى الأخطاء الأخيرة الأداء الأدلة الأدنى الأدوات الأربعاء الأربعة الأزار الأسئلة الأساسية الأسفل الأعلى الأعمال الأفقي الأفكار الأقران الأقسام الأقل الأكاديمي الأكاديمية الأكاديميين الأكبر الأكثر الأمثل الأمن الأمور الأنشطة الأهداف الأول الأولى الإبداع الإثرائية الإثنين الإجابات الإجراءات الإحصائي الإحصائية الإدارة الإذن الإرسال الإرشادات الإستراتيجيات الإستراتيجية الإسلامية الإشراف الإصدار الإضافة الإعدادية الإفادة الإلقائي الإلكتروني الإلكترونية الإنجليزية الإيجابي الإيجابية الإيميل الابتدائية الاثنين الاجتماع الاجتماعيات الاجتماعية الاحترام الاحتساب الاختيار الاخرين الاستثمار الاستخدام الاسترجاع الاستفادة الاستفسار الاستكمال الاستمارة الاسم الافتراضية الاكتفاء الالتزام الانتظار الانتقال الاهتمام البحوث البدء البدائل البدر البدنية البرمجة البرنامج البريد البستاني البسيط البصرية البلوشي البنائي البنود البيئة البيان البيانات التأمل التاريخ التالية التحدي التحديث التحريرية التحسن التحسين التحصيلية التحقق التحليل التخطيط التدرج التدريب التدريبية التدريس الترابط التراجع التربوي التربوية التربية الترحيل التزام التسلسل التسهيلات التشاركي التطبيق التطبيقات التعامل التعاون التعاوني التعبير التعزيز التعلم التعليم التعليمات التعليمي التعليمية التغذية التغير التغيير التفاعلي التفاعلية التفسيرات التفكير التقارير التقاليد التقدير التقديمية التقرير التقويم التقييم التقييمات التكامل التكنولوجيا التكنولوجية التكويني التمرير التمكين التمهيد التنازلي التنفيذ التنمية التنوع التنويع التهيئة التواصل التوجيه التوزيع التوصل التوصيات التوصيفات التوقيت التوقيع التي الثالثة الثامنة الثانية الثقة الثلاثاء الثلاثية الثنائية الجابر الجاهزة الجديد الجزئية الجفالي الجماعية الجمعة الجهاز الجهد الجوانب الجيد الجيلاني الحاجة الحاسب الحالية الحبيب الحرص الحسابية الحسين الحصة الحصص الحصول الحفاظ الحفيظ الحلول الحمود الحنيفات الحوار الحياتية الحيايتية الخ الخاصة الخامسة الخروج الخطة الخطوات الخلايا الخلية الخماسية الخميس الخيارات الخيارالرابع الدراسات الدراسية الدرس الدعاء الدعم الدقائق الدقة الدنيا الدور الدين الذات الذاتي الذاتية الذهاب الذي الذياب الذين الرؤية الرئيس الرئيسة الرابعة الراجعة الرباعية الرحمن الرحيم الرسالة الرفاعى الرقمية الرمز الرموز الرياضيات الزائر الزاوية الزمن الزمني الزمنية الزوار الزيارات الزيارة السابعة السابقة السادسة السبت السبورة السبوري السجل السجلات السداسية السطر السعود السعيد السلوك السلوكيات السهم السياق السيد الشأن الشاويش الشفهية الشفوية الصح الصحية الصحيح الصحيحة الصف الصفوف الصفي الصفية الصورة الصيادي الصياغة الضغط الطالب الطاهر الطرائق الطلاب الطلبة العالي العام العامة العثمان العد العددية العربي العربية العرض العروض العظيم العلاجي العلاقة العلمية العلوم العليا العمرية العمق العمل العمود العناني العناية العوامرة الغرفة الغلق الفأرة الفاضل الفاعلة الفتاح الفترة الفردية الفروق الفصحى الفصلية الفنون القائمة القادر القبلي القرنفلي القسم القصوى القطرية القوانين القوة القود القويماني القيام القيم القيمة القيمي الكافي الكتابة الكتابي الكتابية الكريم الكفايات الكلي الكلية اللازمة اللغة اللغوية الله اللوحية المأذونة المؤقت المادة الماكرو المباشر المبرمج المتأخرين المتابعات المتابعة المتابعين المتبادل المتدرجة المتعلم المتعلمين المتمحورة المتنوعة المتوفرة المثبت المثيرة المجال المجالات المجموع المجموعات المجموعة المجيد المحاذي المحاذية المحتوى المحدد المحمدي المخالفة المخالفين المختار المختلفة المخرجات المخصص المخطط المخططات المدارس المدخلة المدراء المدرجة المدرسة المدرسي المدير المرحلة المرشد المرغوبة المركب المزدوج المسار المساند المساندة المستطاع المستطيل المستمر المستهدفة المستويات المسجل المشاركات المشاركة المشاهدات المشاهدة المشكلات المصادر المصدر المطلب المطلوبة المطور المعالجة المعايير المعدل المعرفي المعرفية المعروضة المعقد المعلقة المعلم المعلمين المعلومات المغربي المفاتيح المقدمة المقررة المقصرين المكتبة الملاحظات الملاحظة الملف الملفات الممارسات المناسب المناسبة المنتمية المنسدلة المنسق المنسقين المنصات المنطقي المنطقية المنفذ المنفذة المهارات المهام المهنية المواد المواضع المواقع المواقف الموجه الموجهين الموضوع الموقف النائب النبهاني النتائج النداف النسبة النشاط النظام النظامي النعيمي النقاط النقر النمو النواب الهادفة الهندي الهيثم الواجبات الورش الورقية الوسائل الوقت الى الي اليد اليوسف اليوم اوغلو بأسئلة بأسلوب باستكمال بالأهداف بالإطار بالاتفاق بالاكتشاف بالالتزام بالاهتمام بالبيئة بالتأكد بالتعاون بالتعلم بالتعليمات بالتقصي بالجانب بالجودة بالحد بالدقة بالذهاب بالرحمة بالزمن بالزيارة بالشكل بالقسم بالقيم باللغة بالمادة بالماوس بالمحافظة بالمدة بالمزيد بالمعلم بالهدف باليد بتعليق بتعليمات بتفعيل بتفعيله بتقليص بدل بذلك بسلاسة بشكل بعدالة بعمله بعملية بغلق بفاعلية بلا بلغة تتطلب تحويل ترحيل ترحيله ترحيلها تسلسل تشمل تعززالأنشطة تعلم تعلمه تعليمات تعليمية تفاعل تفعيل تفعيله تكنولوجيا تلخيص تلقائي تلقائيا تلقائية تواصل توفرالخطة ثالثا ثلاثية جدول جلوس جمال جميل جيل حال حالة حول خالد خلاصة خلال خلية خليفة خويلات داخل داخلها دخول ذلك زميلكم سؤال سالم سجل سلوك سلوكهم سلوكي سلوكية سليم سليمان سليمة سيصله شامل شاملة شغالة شكل شلغوم شمولية صالح طالب طلاب طلب عادل عالية عبدالجبار عبدالحميد عبدالرازق عبدالرحمن عبدالعال عبدالعزيز عبدالعظيم عبدالفتاح عبدالقادر عبدالكريم عبدالله عبدالهادى عبدالوهاب عسل عقل علاقات علما على علي عليك عليه عليها عمل عمليات عملية غلق فاعلة فالثاني فالح فرغلي فضل فعالة فعالية فعل قابلا قابلة قادرعلى قبل قبلي قلة قليلا كالتعلم كالمخطط كاملا كاملة كحيل كليا كلية كملف لأداء لأدائهم لأغراض لأنشطة لأنشطتها لأي لإتمام لإجابات لإدخال لإرسال لإعداد لإنجاز لاختيار لاهتمام لبنود لتحسن لتحقيق لتحقيقها لتظهر لتعزيز لتعظيم لتعلم لتعيين لتغيير لتفاعل لتقويم لتنظيم لتنفيذ لتنمية لتوظيفها لجلب لجميع لدعم لدى لديه لذواتهم لرفع لزملائهم لزمن لزيادة لصاحب لصالح لضمان لطالب لطبيعة لطفي لطلاب لغة لفظية لقسم لقياس لكل للأخرين للأستاذ للأنشطة للأهداف للإيميل للاسترشاد للاستمارة للاسم للاطلاع للبنين للتحدي للتحقق للتحقيق للتعديل للتعلم للتعليم للتفكير للتمهيد للتوجيهات للدخول للدرس للرجوع للسجل للشؤون للطالب للطلاب للطلبة للعام للفئة للفروق للقياس للمادة للمتوقع للمدرسة للمرحلة للمشاركة للمعلم للمعلمين للملاحظات للموجين للموضوع للوصول لمتابعة لمدخلات لمدرسة لمراحل لمراعاة لمرة لمستوى لمستويات لمستوياتهم لمصادر لمصلحة لمعرفة لمناقشة لمنع لمهارات لموضوع لنموذج لها لهم لوحة لوقت ليقوم مؤجلة متعلم مثل مجال مجلد مختلفة مخلوف مدخل مراحل مستطيل مستكملة مسجلة مسلم معدل معلم معلمي مفعلة ملاحظات ملاحظة ملحقة ملخص ملفه منسدلة نضال نوفل هلال وأساليب وأقوالهم وأولياء وإلكترونيا والأجهزة والأخلاق والأهداف والإلكترونية والاحترام والاختبارات والافتراضية والالتزام والانجاز والبنائي والتأكد والتأمل والتاريخ والتحدي والتحسين والتحفيز والتحقق والترتيبات والتسلسل والتعاون والتعدد والتعلم والتعليمات والتقديم والتكنولوجيا والتكنولوجية والتنمية والتنوع والتي والحد والحسابية والحوار والخاطئة والخبرات والختامي والرأسي والسابقة والسلامة والسلوك والشروح والطالب والطلبة والعرض والعقلية والعمرية والعودة والقيم والكتاب واللغوية والمتنوع والمحتوى والمختبر والمخصص والمرحلة والمساند والمساندة والمشاركات والمشاركة والمعلم والمغفرة والمناقشة والمهارية والمواقف والنشاط والوسائل والوضوح وبأمثلة وبذل وبشكل وتؤهل وتخلو وتسهل وتعليق وتعليقها وتفعل وتفعيل وتقبل وتكنولوجية وذلك ورسالة وزملائهم وسائل وسليمة وشاملا وطلاب وعلى وفاعلة وقابلة وكذلك وللمطلوب ولم ولما ولو وليد ومتصلة ومحاولة ومستكملة ومعامل ومعلنة وملزما يتعلق يختلف يعمل يلي يليه يمثل يولي";
+let IMV = {raw:[], edits:{}, errors:[], busy:false, prog:"", opt:{status:"sent",ack:true,pd:false}, filter:"all"};
+const nk  = s=>normAr(s).replace(/[^ء-ي0-9 ]/g," ").replace(/\s+/g," ").trim();
+const nkl = s=>nk(s).replace(/ل/g,"").replace(/ /g,"");          // مفتاح مقارنة يتجاهل انعكاس اللام والمسافات
+const stripT = s=>String(s||"").replace(/[ً-ْـ]/g,"");
+let _vocab=null, _vocabSig="";
+function impVocab(){ const sig=S.year; if(_vocab&&_vocabSig===sig) return _vocab; const v=new Set();
+  const add=s=>stripT(s).split(/[^ء-ي]+/).forEach(w=>{ if(w.length>=2) v.add(w); });
+  add(OLD_VOCAB_RAW); BANK.items.forEach(x=>Object.values(x).forEach(add)); add(BANK.gen); allTeachers().forEach(t=>add(t.name)); S.cfg.depts.forEach(d=>add(d.name));
+  add(DOMAINS.join(" ")); add(S.cfg.school); add(S.cfg.principal.name); S.cfg.deputies.forEach(d=>add(d.name)); add(Object.values(ROLES).join(" ")); add(PERIODS.join(" ")); add(MODES.join(" "));
+  add("سابع ثامن تاسع ميدانية كلية جزئية الزائر المعلم الحصة الأكاديمي النائب المدير المدرسة المنسق الموجه التربوي ملاحظات الطلاب الطلبة خلال الأخلاق الإسلامية العلاقات المتعلم المتعلمين المعلمين الأنشطة الأسئلة الإستراتيجيات الإلكتروني التعليمية الصفية المرغوبة المنطقي المعروضة المحدد المهام والتعليمات للطلاب المخطط الفاعلة الأمثل الاستثمار الأهداف للتفكير التعلم والمشاركات الفعالة البنائي الغلق المستويات متنوعة");
+  _vocab=v; _vocabSig=sig; return v; }
+function fixWord(w){ const V=impVocab(); const b=stripT(w); if(!b.includes("ل")||V.has(b)) return b;
+  const pos=[]; for(let i=0;i<b.length-1;i++){ if(b[i+1]==="ل"&&/[اأإآمجحخ]/.test(b[i])) pos.push(i); }
+  if(pos.length&&pos.length<=8){ for(let m=1;m<(1<<pos.length);m++){ const a=b.split(""); for(let k=0;k<pos.length;k++) if(m&(1<<k)){ const i=pos[k]; [a[i],a[i+1]]=[a[i+1],a[i]]; } const c=a.join(""); if(V.has(c)) return c; } }
+  let s=b.replace(/ا([أإآ])ل/g,"ال$1"); s=s.replace(/^([وبف]?)امل(?=..)/,"$1الم"); return s; }
+function fixText(s){ return String(s||"").replace(/[ء-يً-ْـ]+/g,fixWord).replace(/أوص ي/g,"أوصي").replace(/نرس ي/g,"نرسي").replace(/\s+([.،:؛)])/g,"$1").replace(/\(\s+/g,"(").replace(/\s{2,}/g," ").trim(); }
+function cleanRec(s){ s=String(s==null?"":s).replace(/\s+/g," ").trim(); if(!s||/^[\/\s.\-ـ]*$/.test(s)) return ""; s=s.replace(/^[\s\-–ـ•.\/]+/,"").replace(/أوصي\s*بـ?\s*:\s*/,"أوصي بـ: ").trim(); return s; }
+function bulletize(s){ const t=String(s||"").replace(/\s+/g," ").trim(); if(!t) return "";
+  return t.split(/\s*(?:-\s*\/\.?|\/\.?\s*-|\s\/\s|\/)\s*/).map(x=>x.replace(/^[\s\-–•.]+/,"").replace(/[\s\-–]+$/,"").trim()).filter(x=>x.length>2&&!/^جوانب\s*(اخر|أخر)/.test(x)).map(x=>"- "+x).join("\n"); }
+function roleFromText(s){ const k=nkl(s); if(!k) return ""; if(k.includes("نائب")||k.includes("ااكاديمي")&&!k.includes("موجه")) return "deputy"; if(k.includes("مدير")) return "principal"; if(k.includes("منسق")||/coordinator/i.test(s)) return "coord"; if(k.includes("موجه")||k.includes("مشرف")||k.includes("خبير")||/supervisor/i.test(s)) return "sup"; if(k.includes("زمي")||k.includes("تباد")) return "peer"; return ""; }
+function modeFromText(s){ const k=nkl(s); if(k.includes("جزئي")) return MODES[1]; if(k.includes("بعد")||k.includes("بث")) return k.includes("غيرمدمج")?MODES[3]:MODES[2]; return MODES[0]; }
+function periodFromText(s){ const k=nkl(s); const i=PERIODS.findIndex(p=>k.includes(nkl(p))); if(i>-1) return PERIODS[i]; const d=String(s||"").match(/\d+/); return d&&PERIODS[+d[0]-1]?PERIODS[+d[0]-1]:String(s||"").trim(); }
+const pad2=n=>String(n).padStart(2,"0");
+function impDate(v){ if(v==null||v==="") return "";
+  if(v instanceof Date&&!isNaN(v)) return `${v.getFullYear()}-${pad2(v.getMonth()+1)}-${pad2(v.getDate())}`;
+  if(typeof v==="number"&&v>20000&&v<80000&&window.XLSX){ const d=XLSX.SSF.parse_date_code(v); if(d) return `${d.y}-${pad2(d.m)}-${pad2(d.d)}`; }
+  const s=String(v).replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d)); let m=s.match(/(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/); if(m) return `${m[1]}-${pad2(m[2])}-${pad2(m[3])}`;
+  m=s.match(/(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})/); if(m) return `${m[3]}-${pad2(m[2])}-${pad2(m[1])}`; return ""; }
+const isMark = v=>{ if(v==null) return false; if(v===true) return true; const s=String(v).trim(); return !!s&&s!=="0"&&s.toLowerCase()!=="false"&&s!=="-"; };
+
+/* ---- Excel: ورقة «السجل» أو أي ورقة بنفس البنية ---- */
+function impFromWorkbook(buf,file){ const wb=XLSX.read(buf,{type:"array",cellDates:false}); const out=[]; let found=false;
+  wb.SheetNames.forEach(sn=>{ const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:null,blankrows:true}); const r=impFromRows(rows,file,sn); if(r){ found=true; out.push(...r); } });
+  if(!found) throw new Error("لم يُعثر على ورقة بنية «السجل» (عمود «اسم المعلم» وأعمدة المؤشرات الـ23).");
+  return out; }
+function impFromRows(rows,file,sheet){ const K=v=>nkl(v==null?"":String(v));
+  let h=-1; for(let r=0;r<Math.min(rows.length,20);r++){ if((rows[r]||[]).some(c=>K(c).includes(nkl("اسم المعلم")))){ h=r; break; } }
+  if(h<0) return null;
+  const H=rows[h]||[], H2=rows[h+1]||[], H0=h>0?rows[h-1]||[]:[]; const W=Math.max(H.length,H2.length,H0.length);
+  const find=(keys,row=H)=>{ for(let c=0;c<W;c++){ const k=K(row[c]); if(k&&keys.some(x=>k.includes(nkl(x)))) return c; } return -1; };
+  const cT=find(["اسم المعلم"]); const cDept=find(["القسم"]); let cDate=find(["تاريخ"],H2); if(cDate<0) cDate=find(["تاريخ الزيارة","التاريخ"]);
+  const cSec=find(["الصف"]), cPer=find(["الحصة"]), cTopic=find(["موضوع الدرس"]), cMode=find(["نوع الزيارة","نوع المتابعة"]), cNote=find(["مدة الزيارة","ملاحظات"]);
+  const cAll=find(["الأداء العام"],H2); let cLv=-1;
+  for(let c=0;c<W;c++){ if(+H0[c]===1&&+H0[c+114]===115){ cLv=c; break; } }
+  if(cLv<0){ const ca=find(["تقدير تلقائي"]); if(ca>=0) cLv=ca+5; }
+  if(cT<0||cLv<0) return null;
+  const cRec=find(["توصيات التخطيط"]); let cStr=find(["نقاط القوة في أداء"]); if(cStr<0) cStr=find(["جوانب مميزة"]); let cDev=find(["جوانب تحتاج تحسين"]); if(cDev<0) cDev=find(["جوانب تحتاج"]);
+  const cVR=Math.max(find(["صفة الزائر","نوع الزائر"]),find(["صفة الزائر"],H2)); const cVN=Math.max(find(["اسم الزائر"]),find(["اسم الزائر"],H2));
+  const out=[];
+  for(let r=h+2;r<rows.length;r++){ const row=rows[r]||[]; const tn=String(row[cT]==null?"":row[cT]).trim(); if(!tn) continue;
+    const date=impDate(cDate>=0?row[cDate]:""); const warn=[]; if(!date) warn.push("تاريخ غير مقروء");
+    const ratings={}; let n=0;
+    for(let i=0;i<IND.length;i++){ const ks=[0,1,2,3,4].filter(k=>isMark(row[cLv+5*i+k])); if(!ks.length) continue; if(ks.length>1) warn.push(`المؤشر ${i+1}: أكثر من مستوى`);
+      const k=ks[0]+1; ratings[i]={l:k<=4?k:0, rec:cRec>=0?cleanRec(row[cRec+i]):""}; n++; }
+    if(!n) continue;
+    const ov=cAll>=0?row[cAll]:null;
+    out.push({rid:uid(),src:"excel",file,sheet,row:r+1,teacherName:tn.replace(/\s+/g," "),deptName:cDept>=0?String(row[cDept]||"").trim():"",date,
+      period:cPer>=0?periodFromText(row[cPer]):"",section:cSec>=0?String(row[cSec]||"").replace(/\s*-\s*/g,"-").trim():"",topic:cTopic>=0?String(row[cTopic]||"").trim():"",
+      mode:cMode>=0?modeFromText(row[cMode]):MODES[0],note:cNote>=0&&isNaN(+row[cNote])?String(row[cNote]||"").trim():"",
+      vrText:cVR>=0?String(row[cVR]||""):"",vName:cVN>=0?String(row[cVN]||"").trim():"",
+      ratings,strengths:cStr>=0?bulletize(row[cStr]):"",devs:cDev>=0?bulletize(row[cDev]):"",oldScore:typeof ov==="number"?(ov<=1.0001?ov*100:ov):null,warn}); }
+  return out; }
+
+/* ---- PDF: استمارة الإشراف المصدّرة من النظام السابق ---- */
+let _pdfjs=null;
+async function loadPdfJs(){ if(window.pdfjsLib) return window.pdfjsLib; if(_pdfjs) return _pdfjs;
+  const base="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/";
+  _pdfjs=new Promise((res,rej)=>{ const s=document.createElement("script"); s.src=base+"pdf.min.js"; s.onload=async()=>{ const L=window.pdfjsLib; if(!L) return rej(new Error("تعذّر تحميل قارئ PDF"));
+      try{ const t=await (await fetch(base+"pdf.worker.min.js")).text(); L.GlobalWorkerOptions.workerSrc=URL.createObjectURL(new Blob([t],{type:"text/javascript"})); }catch(_){ L.GlobalWorkerOptions.workerSrc=base+"pdf.worker.min.js"; } res(L); };
+    s.onerror=()=>{ _pdfjs=null; rej(new Error("تعذّر تحميل قارئ PDF؛ تحقق من الاتصال بالإنترنت")); }; document.head.appendChild(s); });
+  return _pdfjs; }
+async function pdfPages(buf){ const L=await loadPdfJs(); const doc=await L.getDocument({data:new Uint8Array(buf)}).promise; const pages=[];
+  for(let p=1;p<=doc.numPages;p++){ const pg=await doc.getPage(p); const tc=await pg.getTextContent(); const vp=pg.getViewport({scale:1});
+    pages.push({n:p,w:vp.width,items:tc.items.filter(it=>it.str&&it.str.trim()).map(it=>{ const t=it.transform; const rot=Math.abs(t[1])>0.3||Math.abs(t[2])>0.3; return {x:t[4],y:t[5],w:it.width,fs:Math.hypot(t[2],t[3])||Math.hypot(t[0],t[1])||8,rot,s:it.str}; })}); }
+  try{ doc.destroy(); }catch(_){} return pages; }
+function lineItems(items,y,tol=4){ return items.filter(i=>!i.rot&&Math.abs(i.y-y)<=tol).sort((a,b)=>(b.x+b.w)-(a.x+a.w)); }
+const PDF_LABELS=["المدرسة","اليوم و","اليوم","التاريخ","المادة","موضوع الدرس","الصف","المعلم","الحصة","نوع المتابعة","نوع الزيارة","الزائر","الاسم","ملاحظات"].map(nkl);
+function pdfCell(pg,label,maxY=1e9){ const lk=nkl(label); const lab=pg.items.filter(i=>!i.rot&&i.y<maxY&&nkl(i.s)===lk).sort((a,b)=>b.y-a.y)[0]; if(!lab) return "";
+  const ln=lineItems(pg.items,lab.y).filter(i=>i.x+i.w<=lab.x+1); const out=[];
+  for(const it of ln){ const k=nkl(it.s); if(PDF_LABELS.includes(k)&&it!==lab) break; if(/^[\/:ةا]$/.test(it.s.trim())&&!out.length) continue; out.push(it.s); }
+  return out.join(" ").replace(/\s*-\s*/g,"-").replace(/\s+/g," ").trim(); }
+async function impFromPdf(buf,file,path){ const pages=await pdfPages(buf); if(!pages.length) throw new Error("ملف فارغ");
+  const p1=pages[0]; const all=pages.flatMap(p=>p.items.map(i=>Object.assign({pg:p.n},i)));
+  const evalHead=p1.items.find(i=>nkl(i.s).includes(nkl("محاور تقييم"))||nkl(i.s).includes("حاورتقييم")); const maxY=1e9; const minY=evalHead?evalHead.y:0;
+  const hdr=p1.items.filter(i=>i.y>minY); const pg={items:hdr};
+  const txt=hdr.map(i=>i.s).join(" ");
+  if(!all.some(i=>i.s.trim()==="P"||i.s.trim()==="✓"||i.s.trim()==="ü")&&!nkl(txt).includes(nkl("استمارة"))) throw new Error("لا يبدو أنه استمارة زيارة صفية (لا توجد علامات تقدير)");
+  const warn=[]; const date=impDate(pdfCell(pg,"التاريخ")||pdfCell(pg,"اليوم و")||txt); if(!date) warn.push("تاريخ غير مقروء");
+  const rec={rid:uid(),src:"pdf",file,path:path||file,teacherName:fixText(pdfCell(pg,"المعلم")),deptName:fixText(pdfCell(pg,"المادة")),date,
+    period:periodFromText(fixText(pdfCell(pg,"الحصة"))),section:(fixText(pdfCell(pg,"الصف"))||"").replace(/\s*-\s*/g,"-"),topic:fixText(pdfCell(pg,"موضوع الدرس")),
+    mode:modeFromText(fixText(pdfCell(pg,"نوع المتابعة")||pdfCell(pg,"نوع الزيارة"))),note:fixText(pdfCell(pg,"ملاحظات")),
+    vrText:fixText(pdfCell(pg,"الزائر")),vName:fixText(pdfCell(pg,"الاسم")),ratings:{},strengths:"",devs:"",oldScore:null,warn};
+  // أعمدة المستويات من عناوينها المائلة
+  const COLK=[["مستكم"],["معظم"],["بعض"],["محدود","غيرمتوفر"],["قياس"]]; let lastCols=null; const marks=[];
+  pages.forEach(p=>{ let cols=COLK.map(keys=>{ const it=p.items.filter(i=>i.rot&&keys.some(k=>nkl(i.s).includes(k))); if(!it.length) return null; const xs=it.map(i=>i.x-i.fs/2).sort((a,b)=>a-b); return xs[Math.floor(xs.length/2)]; });
+    if(cols.some(c=>c==null)) cols=lastCols; if(!cols) return; lastCols=cols;
+    const lo=Math.min(...cols)-12, hi=Math.max(...cols)+12;
+    p.items.filter(i=>!i.rot&&/^(P|✓|✔|ü|þ)$/.test(i.s.trim())).forEach(i=>{ const cx=i.x+i.w/2; if(cx<lo||cx>hi) return; let best=0,bd=1e9; cols.forEach((c,k)=>{ const d=Math.abs(cx-c); if(d<bd){bd=d;best=k;} }); marks.push({pg:p.n,y:i.y,x:cx,k:best+1,cols}); }); });
+  marks.sort((a,b)=>a.pg-b.pg||b.y-a.y);
+  if(!marks.length) throw new Error("لم يُعثر على علامات التقدير في الاستمارة");
+  let map=[];
+  if(marks.length===IND.length) map=marks.map((m,i)=>i);
+  else { warn.push(`عدد العلامات ${marks.length} بدل ${IND.length} – طُوبقت بنص المؤشر، راجعها`); let last=-1;
+    marks.forEach(m=>{ const p=pages[m.pg-1]; const right=Math.max(...m.cols)+8; const t=p.items.filter(i=>!i.rot&&i.x>right&&i.x<p.w*0.83&&Math.abs(i.y-m.y)<=14).map(i=>i.s).join(" "); const A=new Set(nk(fixText(t)).split(" ").filter(w=>w.length>2));
+      let bi=-1,bs=0; IND.forEach((x,i)=>{ if(i<=last) return; const B=nk(x.t).split(" ").filter(w=>w.length>2); const s=B.filter(w=>A.has(w)).length/Math.max(3,B.length); if(s>bs){bs=s;bi=i;} });
+      if(bi>-1&&bs>=0.25){ map.push(bi); last=bi; } else map.push(-1); }); }
+  // التوصيات: نصوص يسار أعمدة المستويات بمحاذاة صف العلامة
+  const recs={}; marks.forEach((m,j)=>{ const i=map[j]; if(i<0) return; const p=pages[m.pg-1]; const left=Math.min(...m.cols)-7;
+    const its=p.items.filter(it=>!it.rot&&it.x+it.w/2<left&&Math.abs(it.y-m.y)<=13).filter(it=>{ const near=marks.filter(o=>o.pg===m.pg).reduce((a,o)=>Math.abs(o.y-it.y)<Math.abs(a.y-it.y)?o:a,m); return near===m; });
+    const lines={}; its.forEach(it=>{ const key=Math.round(it.y/3); (lines[key]=lines[key]||[]).push(it); });
+    const t=Object.keys(lines).sort((a,b)=>b-a).map(k=>lines[k].sort((a,b)=>(b.x+b.w)-(a.x+a.w)).map(x=>x.s).join(" ")).join(" ");
+    const lv=m.k<=4?m.k:0; rec.ratings[i]={l:lv,rec:cleanRec(fixText(t))}; });
+  // نقاط القوة والجوانب التي تحتاج تطويرًا
+  const findY=keys=>{ const it=all.filter(i=>!i.rot&&keys.some(k=>nkl(i.s).includes(nkl(k)))).sort((a,b)=>a.pg-b.pg||b.y-a.y)[0]; return it?{pg:it.pg,y:it.y}:null; };
+  const yS=findY(["نقاط القوة"]), yD=findY(["تحتاج إلى تطوير","تحتاج الى تطوير","تحتاج إى تطوير"]);
+  const block=(from,to)=>{ if(!from) return ""; const p=pages[from.pg-1]; let end=to&&to.pg===from.pg?to.y:-1;
+    if(!to){ const stop=p.items.filter(i=>!i.rot&&i.y<from.y-4&&(nkl(i.s).includes("مهمجدا")||nkl(i.s).includes("توقيع")||/^امعم$/.test(nkl(i.s)))&&i.x>p.w*0.45).sort((a,b)=>b.y-a.y)[0]; end=stop?stop.y:-1; }
+    const its=p.items.filter(i=>!i.rot&&i.y<from.y-3&&i.y>end+3&&i.x+i.w>p.w*0.42&&!/جوانب/.test(i.s)&&!nkl(i.s).includes("جوانباخر"));
+    const lines={}; its.forEach(it=>{ const key=Math.round(it.y/3); (lines[key]=lines[key]||[]).push(it); });
+    return bulletize(fixText(Object.keys(lines).sort((a,b)=>b-a).map(k=>lines[k].sort((a,b)=>(b.x+b.w)-(a.x+a.w)).map(x=>x.s).join(" ")).join(" / "))); };
+  rec.strengths=block(yS,yD); rec.devs=block(yD,null);
+  if(!rec.vrText){ const h=roleFromText(path||file); if(h) rec.vrText=ROLES[h]; }
+  return [rec]; }
+
+/* ---- الربط بالمعلمين والزائرين والدمج ---- */
+function impTeacher(name,dept){ const ts=allTeachers(); if(!nk(name)) return {id:"",cands:[]};
+  let c=ts.filter(t=>nk(t.name)===nk(name)); if(!c.length) c=ts.filter(t=>nkl(t.name)===nkl(name)); if(!c.length) c=ts.filter(t=>nameMatch(t.name,name));
+  if(!c.length){ const A=nk(name).split(" ").filter(x=>x.length>1); c=ts.map(t=>{ const B=nk(t.name).split(" ").filter(x=>x.length>1); const m=A.filter(x=>B.includes(x)||B.some(y=>nkl(y)===nkl(x))).length; return {t,m,r:m/Math.max(A.length,B.length)}; }).filter(x=>x.m>=2&&x.r>=0.5).sort((a,b)=>b.r-a.r||b.m-a.m);
+    if(c.length>1&&c[0].r>c[1].r) c=[c[0]]; c=c.map(x=>x.t); }
+  if(c.length>1&&dept){ const dk=nkl(dept); const d=c.filter(t=>{ const tk=nkl(t.dept); return tk===dk||dk.includes(tk)||tk.includes(dk); }); if(d.length) c=d; }
+  return {id:c.length===1?c[0].id:"",cands:c.map(t=>t.id)}; }
+function impKnownVisitors(role){ const c=[]; if(!role||role==="principal") c.push(S.cfg.principal.name); if(!role||role==="deputy") S.cfg.deputies.forEach(d=>c.push(d.name));
+  if(!role||role==="coord") S.cfg.depts.forEach(d=>{ const x=coordOf(d); if(x) c.push(x.name); });
+  users().forEach(u=>{ if((!role||u.role===role)&&u.role!=="teacher") c.push(u.name); });
+  if(!role||role==="sup") VIS().forEach(v=>{ if(v.visitorRole==="sup"&&v.visitorName) c.push(v.visitorName); });
+  return [...new Set(c.filter(Boolean))]; }
+function impVisitorName(role,name,teacherId){ const n=String(name||"").replace(/\s+/g," ").trim();
+  if(!n){ if(role==="principal") return S.cfg.principal.name||""; if(role==="deputy"&&S.cfg.deputies.length===1) return S.cfg.deputies[0].name; if(role==="coord"&&teacherId){ const t=T(teacherId); const c=t&&coordOf(D(t.deptId)); if(c) return c.name; } return ""; }
+  const m=impKnownVisitors(role).find(c=>nameMatch(c,n)||nkl(c)===nkl(n)); return m||n; }
+const impKey = r=>[r.teacherId,r.date,nkl(r.period)].join("|");
+function impRows(){ // يبني صفوف المراجعة من الملفات الخام + تعديلات المستخدم
+  const rows=IMV.raw.map(r=>{ const e=IMV.edits[r.rid]||{}; const tm=impTeacher(r.teacherName,r.deptName); const teacherId=e.teacherId!==undefined?e.teacherId:tm.id;
+    let vRole=e.vRole!==undefined?e.vRole:roleFromText(r.vrText); if(!vRole&&e.vRole===undefined){ const h=roleFromText(r.path||r.file); if(h) vRole=h; }
+    const vName=e.vName!==undefined?e.vName:impVisitorName(vRole,r.vName,teacherId);
+    return Object.assign({},r,{teacherId,cands:tm.cands,vRole,vName,srcs:[r.src],files:[r.file],merged:false}); });
+  // دمج الإكسل مع PDF لنفس الزيارة (المعلم + التاريخ + الحصة)
+  const byKey={}; const out=[];
+  rows.forEach(r=>{ if(!r.teacherId||!r.date){ out.push(r); return; } const k=impKey(r); const a=byKey[k];
+    if(!a){ byKey[k]=r; out.push(r); return; }
+    if(a.src==="excel"&&r.src==="excel"&&a.file===r.file){ r.dup=true; out.push(r); return; }
+    const [base,other]=a.src==="excel"||r.src!=="excel"?[a,r]:[r,a];
+    if(base!==a){ out[out.indexOf(a)]=base; byKey[k]=base; }
+    if(!base.vRole&&other.vRole){ base.vRole=other.vRole; base.vName=other.vName; } if(!base.vName&&other.vName&&base.vRole===other.vRole) base.vName=other.vName;
+    if(!base.strengths) base.strengths=other.strengths; if(!base.devs) base.devs=other.devs; if(!base.topic) base.topic=other.topic; if(!base.note) base.note=other.note;
+    if(base.src!==other.src){ Object.keys(other.ratings).forEach(i=>{ if(!base.ratings[i]) base.ratings[i]=other.ratings[i]; else if(!base.ratings[i].rec&&other.ratings[i].rec) base.ratings[i].rec=other.ratings[i].rec; }); }
+    base.srcs=[...new Set(base.srcs.concat(other.srcs))]; base.files=[...new Set(base.files.concat(other.files))]; base.merged=true; base.mergedIds=(base.mergedIds||[]).concat(other.rid); });
+  const terms=S.cfg.terms||[]; const yFrom=terms.length?terms.map(t=>t.from).sort()[0]:"", yTo=terms.length?terms.map(t=>t.to).sort().slice(-1)[0]:"";
+  out.forEach(r=>{ const e=IMV.edits[r.rid]||{}; const iss=[];
+    if(r.dup) iss.push("مكرر في نفس الملف");
+    if(!r.teacherId) iss.push(r.cands.length>1?"اسم المعلم يطابق أكثر من معلم":"المعلم غير موجود في كادر العام");
+    if(!r.date) iss.push("التاريخ غير مقروء"); else if(yFrom&&(r.date<yFrom||r.date>yTo)) iss.push(`خارج العام ${S.year}`);
+    if(!r.vRole) iss.push("حدّد صفة الزائر"); else if(!r.vName&&r.vRole!=="peer") iss.push("أدخل اسم الزائر");
+    r.n=Object.keys(r.ratings).length; r.score=scoreOf({ratings:r.ratings}).avg;
+    r.exists=!!(r.teacherId&&r.date&&VIS().some(v=>v.teacherId===r.teacherId&&v.date===r.date&&nkl(v.period)===nkl(r.period)&&(!r.vRole||v.visitorRole===r.vRole)));
+    if(r.exists) iss.push("مسجلة في النظام مسبقًا");
+    r.issues=iss; r.ok=!iss.length;
+    r.inc=e.inc!==undefined?(e.inc&&!r.dup&&!!r.teacherId&&!!r.date&&!!r.vRole):r.ok; });
+  return out.sort((a,b)=>(a.ok===b.ok?0:a.ok?1:-1)||(T(a.teacherId)||{dept:"ي"}).dept.localeCompare((T(b.teacherId)||{dept:"ي"}).dept,"ar")||(a.date||"").localeCompare(b.date||"")); }
+
+/* ---- قراءة الملفات ---- */
+async function impHandleFiles(list){ if(IMV.busy) return; IMV.busy=true; IMV.errors=[]; const files=[];
+  const setP=t=>{ IMV.prog=t; const el=$("#imp-prog"); if(el) el.textContent=t; };
+  try{
+    setP("جارٍ تجهيز الملفات…");
+    for(const f of list){ const n=f.name.toLowerCase();
+      if(n.endsWith(".zip")){ const z=await JSZip.loadAsync(await f.arrayBuffer()); for(const e of Object.values(z.files)){ const en=e.name.toLowerCase(); if(e.dir||en.includes("__macosx")||!/\.(pdf|xlsx|xlsm|xls)$/.test(en)) continue; files.push({name:e.name.split("/").pop(),path:e.name,buf:await e.async("arraybuffer")}); } }
+      else if(/\.(pdf|xlsx|xlsm|xls)$/.test(n)) files.push({name:f.name,path:f.webkitRelativePath||f.name,buf:await f.arrayBuffer()}); }
+    if(!files.length){ toast("لا توجد ملفات Excel أو PDF في الاختيار"); return; }
+    let added=0;
+    for(let k=0;k<files.length;k++){ const f=files[k]; setP(`جارٍ قراءة ${k+1} من ${files.length}: ${f.name}`);
+      if(IMV.raw.some(r=>r.path===f.path&&r.file===f.name&&r.src==="pdf")) continue;
+      try{ const recs=/\.pdf$/i.test(f.name)?await impFromPdf(f.buf,f.name,f.path):impFromWorkbook(f.buf,f.name).map(r=>Object.assign(r,{path:f.path}));
+        if(!recs.length) IMV.errors.push(`${f.name}: لا توجد زيارات مسجلة في الملف`); IMV.raw.push(...recs); added+=recs.length; }
+      catch(e){ IMV.errors.push(`${f.name}: ${e.message||e}`); } }
+    IMV.prog=`قُرئت ${files.length} ملفًا وتم التعرف على ${added} زيارة.`; logAct("قراءة ملفات زيارات سابقة",`${files.length} ملف – ${added} زيارة`);
+  } finally { IMV.busy=false; render(); }
+}
+
+/* ---- الإدراج والتراجع ---- */
+function impToVisit(r,batch){ const t=T(r.teacherId); const now=new Date().toISOString(); const ratings={};
+  Object.entries(r.ratings).forEach(([i,x])=>{ ratings[i]={l:x.l,rec:x.rec||""}; });
+  const own=["principal","deputy","coord"].includes(r.vRole);
+  const acct=own?users().find(u=>u.role!=="teacher"&&(nameMatch(u.name,r.vName)||nkl(u.name)===nkl(r.vName))):null;
+  const at=r.date+"T12:00:00.000Z";
+  const v={id:uid(),year:S.year,status:IMV.opt.status,date:r.date,period:r.period||"",section:r.section||"",topic:r.topic||"",mode:r.mode||MODES[0],purpose:r.vRole==="peer"?"peer":"eval",
+    visitorRole:r.vRole,visitorName:r.vName||"",recordedBy:acct?acct.key:"imp",recordedByName:own?r.vName:"",teacherId:r.teacherId,deptId:t.deptId,ratings,pdr:{},focus:[],
+    strengths:r.strengths||"",devs:r.devs||"",action:"",general:r.note?("ملاحظات الزيارة: "+r.note):"",conf:{date:"",pre:false,notes:""},reflection:"",tot:["","",""],totN:"",follow:{},nextDate:"",
+    createdAt:at,closedAt:at,imp:{batch,src:r.srcs.join("+"),file:r.files.join("، ").slice(0,300),oldScore:r.oldScore==null?null:Math.round(r.oldScore*10)/10,at:now,by:S.user.name}};
+  if(!v.strengths) v.strengths=IND.filter(x=>(ratings[x.i]||{}).l===1).map(x=>"- "+x.s.trim()).filter(s=>s.length>3).join("\n");
+  if(!v.devs) v.devs=IND.filter(x=>{ const q=ratings[x.i]||{}; return q.l>=2&&(q.rec||"").trim(); }).map(x=>"- "+ratings[x.i].rec.trim()).join("\n");
+  if(IMV.opt.status==="sent") v.sentAt=at; if(IMV.opt.ack){ v.ack=true; v.ackAt=at; }
+  v.term=termOf(v.date); v.score=scoreOf(v).avg; return v; }
+async function impCommit(){ const rows=impRows().filter(r=>r.inc); if(!rows.length){ toast("لا توجد زيارات محددة للإدراج"); return; }
+  const bad=rows.filter(r=>!r.teacherId||!r.date||!r.vRole); if(bad.length){ toast("أكمل المعلم والتاريخ وصفة الزائر للصفوف المحددة"); return; }
+  const batch="imp-"+Date.now().toString(36); IMV.busy=true; let ok=0, pdn=0; const btn=$("#imp-go"); if(btn) btn.disabled=true;
+  try{ for(const r of rows){ const el=$("#imp-prog"); if(el) el.textContent=`جارٍ الإدراج ${ok+1} من ${rows.length}…`;
+      const v=impToVisit(r,batch); await put("visits",v); ok++;
+      if(IMV.opt.pd){ for(const x of IND){ const q=v.ratings[x.i]||{}; if((q.l===3||q.l===4)&&(q.rec||"").trim()){ await put("pd",{id:uid(),type:"ind",teacherId:v.teacherId,deptId:v.deptId,visitId:v.id,ind:x.i,level:q.l,text:q.rec.trim(),priority:false,due:addDays(v.date,21),status:"open",progress:"",createdBy:S.user.key,createdAt:new Date().toISOString(),imp:batch}); pdn++; } } }
+      const done=new Set([r.rid].concat(r.mergedIds||[])); IMV.raw=IMV.raw.filter(x=>!done.has(x.rid)); }
+    logAct("استيراد زيارات سابقة",`${ok} زيارة${pdn?` و${pdn} إجراء تطوير`:""} – الدفعة ${batch}`); toast(`أُدرجت ${ok} زيارة في سجلات زائريها`);
+    IMV.prog=`تم إدراج ${ok} زيارة (الدفعة ${fmtD(new Date().toISOString().slice(0,10))}).`;
+  }catch(e){ toast("توقف الإدراج: "+(e.message||e)); }
+  finally{ IMV.busy=false; render(); } }
+function impBatches(){ const m={}; Object.values(S.visits).filter(v=>v.imp&&v.imp.batch&&vy(v)===S.year).forEach(v=>{ const b=m[v.imp.batch]=m[v.imp.batch]||{id:v.imp.batch,n:0,at:v.imp.at,by:v.imp.by,roles:{}}; b.n++; b.roles[v.visitorRole]=(b.roles[v.visitorRole]||0)+1; }); return Object.values(m).sort((a,b)=>(b.at||"").localeCompare(a.at||"")); }
+async function impUndo(id){ const vs=Object.values(S.visits).filter(v=>v.imp&&v.imp.batch===id); const ids=new Set(vs.map(v=>v.id));
+  for(const p of Object.values(S.pd).filter(p=>ids.has(p.visitId))) await del("pd",p.id);
+  for(const v of vs) await del("visits",v.id); logAct("حذف دفعة استيراد",`${vs.length} زيارة – ${id}`); toast(`حُذفت ${vs.length} زيارة مستوردة`); render(); }
+
+/* ---- الواجهة ---- */
+function importView(){
+  const rows=impRows(); const bt=impBatches(); const lvTxt=["لم يُقس","مستكملة","معظمها","بعضها","محدودة"];
+  const cnt={all:rows.length,ok:rows.filter(r=>r.ok).length,rev:rows.filter(r=>!r.ok&&!r.exists&&!r.dup).length,ex:rows.filter(r=>r.exists||r.dup).length,mg:rows.filter(r=>r.merged).length,inc:rows.filter(r=>r.inc).length};
+  const F=IMV.filter; const shown=rows.filter(r=>F==="all"||(F==="ok"&&r.ok)||(F==="rev"&&!r.ok&&!r.exists&&!r.dup)||(F==="ex"&&(r.exists||r.dup))||(F==="mg"&&r.merged));
+  const files=[...new Set(rows.flatMap(r=>r.files))];
+  const tOpts=sel=>`<option value="">— اختر المعلم —</option>`+S.cfg.depts.map(d=>`<optgroup label="${esc(d.name)}">${d.teachers.map(t=>`<option value="${t.id}" ${sel===t.id?"selected":""}>${esc(t.name)}</option>`).join("")}</optgroup>`).join("");
+  const rOpts=sel=>`<option value="">— صفة الزائر —</option>`+["principal","deputy","coord","sup","peer"].map(k=>`<option value="${k}" ${sel===k?"selected":""}>${ROLES[k]}</option>`).join("");
+  const srcChip=r=>r.srcs.map(s=>`<span class="chip" style="background:${s==="pdf"?"var(--l4-bg);color:var(--l4)":"var(--l1-bg);color:var(--l1)"}">${s==="pdf"?"PDF":"Excel"}</span>`).join(" ");
+  return `<div class="sec-head"><div><div class="eyebrow">النظام · العام الأكاديمي ${esc(S.year)}</div><h2>استيراد زيارات النظام السابق</h2>
+   <p>ارفع سجل الإكسل (ورقة «السجل» أو ملف مجمّع) أو ملفات PDF للاستمارات أو مجلدًا كاملًا أو ملفًا مضغوطًا. يتعرّف النظام على المعلم والزائر والمؤشرات الـ23 والتوصيات، وتُدرج كل زيارة في سجل زائرها بعد مراجعتك.</p></div></div>
+  <div class="card imp-drop" id="imp-drop"><div class="row" style="justify-content:space-between;align-items:center">
+    <div><b>اسحب الملفات أو المجلد هنا</b><div class="muted small">Excel (xlsx / xlsm / xls) · PDF · مجلد · ZIP — يمكنك الرفع على دفعات، وتُدمج الزيارة الواحدة إذا وُجدت في الإكسل والـPDF معًا.</div></div>
+    <div class="row"><label class="btn pri">اختيار ملفات<input type="file" id="imp-files" multiple accept=".xlsx,.xlsm,.xls,.pdf,.zip" hidden></label><label class="btn">اختيار مجلد<input type="file" id="imp-dir" webkitdirectory multiple hidden></label>${IMV.raw.length?`<button class="btn ghost" id="imp-clear">مسح القائمة</button>`:""}</div></div>
+    <p class="small" id="imp-prog" style="margin:10px 0 0;color:var(--maroon-2);font-weight:600">${esc(IMV.prog||"")}</p>
+    ${IMV.errors.length?`<details class="small" style="margin-top:6px"><summary style="color:var(--l4);cursor:pointer">${IMV.errors.length} ملف لم يُقرأ</summary><ul class="list-plain">${IMV.errors.map(e=>`<li>${esc(e)}</li>`).join("")}</ul></details>`:""}</div>
+  ${rows.length?`<div class="card" style="margin-top:14px">
+   <div class="pill-tabs" role="group">${[["all","الكل",cnt.all],["ok","جاهزة",cnt.ok],["rev","تحتاج مراجعة",cnt.rev],["ex","موجودة/مكررة",cnt.ex],["mg","مدمجة Excel+PDF",cnt.mg]].map(([k,t,n])=>`<button data-impf="${k}" aria-pressed="${F===k}">${t} <b class="num">${n}</b></button>`).join("")}</div>
+   <div class="imp-bar"><span class="small muted">تحديد الزائر:</span><select id="imp-br">${rOpts("")}</select><input id="imp-bn" list="imp-vl" placeholder="اسم الزائر"><datalist id="imp-vl">${impKnownVisitors().map(n=>`<option value="${esc(n)}">`).join("")}</datalist>
+     <select id="imp-bt"><option value="none">للصفوف التي بلا زائر</option><option value="inc">للصفوف المحددة</option>${files.map((f,i)=>`<option value="f${i}">لزيارات ملف: ${esc(f.length>40?f.slice(0,40)+"…":f)}</option>`).join("")}</select><button class="btn sm" id="imp-bapply">تطبيق</button></div>
+   <div class="tbl-wrap" style="margin-top:10px"><table class="imp-tbl"><thead><tr><th class="c"><input type="checkbox" id="imp-all" aria-label="تحديد الكل" ${shown.length&&shown.every(r=>r.inc)?"checked":""}></th><th>المعلم</th><th>الزيارة</th><th>الزائر</th><th class="c">المؤشرات</th><th class="c">النسبة</th><th>الحالة</th><th></th></tr></thead><tbody>
+   ${shown.map(r=>{ const t=T(r.teacherId); return `<tr class="${r.ok?"":"imp-warn"}">
+     <td class="c"><input type="checkbox" data-iinc="${r.rid}" ${r.inc?"checked":""} ${r.dup?"disabled":""}></td>
+     <td>${t?`<b>${esc(t.name)}</b><div class="muted small">${esc(t.dept)}</div>`:`<select data-it="${r.rid}" style="min-width:180px">${tOpts("")}</select>`}${t&&nk(t.name)!==nk(r.teacherName)?`<div class="muted small">في الملف: ${esc(r.teacherName)}</div>`:""}${!t?`<div class="muted small">في الملف: ${esc(r.teacherName||"—")}</div>`:""}</td>
+     <td class="num">${r.date?fmtD(r.date):"—"}<div class="muted small">${esc(r.period||"")}${r.section?" · "+esc(r.section):""}</div><div style="margin-top:3px">${srcChip(r)}</div></td>
+     <td><select data-ir="${r.rid}">${rOpts(r.vRole)}</select><input data-in="${r.rid}" list="imp-vl" value="${esc(r.vName||"")}" placeholder="اسم الزائر" style="margin-top:4px"></td>
+     <td class="c num">${r.n}/${IND.length}</td>
+     <td class="c"><span class="lv ${lvColor(r.score)} num">${fix1(r.score)}</span>${r.oldScore!=null?`<div class="muted small num">السابق ${fix1(r.oldScore)}</div>`:""}</td>
+     <td class="small">${r.ok?`<span class="chip st st-sent">جاهزة</span>`:r.issues.map(x=>`<div style="color:${/مسبق|مكرر/.test(x)?"var(--ink-2)":"var(--l4)"}">• ${esc(x)}</div>`).join("")}${r.warn&&r.warn.length?`<div class="muted">${r.warn.map(esc).join("<br>")}</div>`:""}</td>
+     <td><button class="btn sm" data-iprev="${r.rid}">معاينة</button></td></tr>`; }).join("")}
+   </tbody></table></div>
+   <div class="fields" style="margin-top:14px"><label class="f">حالة الزيارات بعد الإدراج<select id="imp-st"><option value="sent" ${IMV.opt.status==="sent"?"selected":""}>أُرسلت للمعلم (مناسب للزيارات السابقة)</option><option value="closed" ${IMV.opt.status==="closed"?"selected":""}>معتمدة ولم تُرسل</option></select></label>
+     <label class="row small" style="align-self:end"><input type="checkbox" id="imp-ack" ${IMV.opt.ack?"checked":""} style="width:auto"> اعتبر المعلم مطّلعًا عليها</label>
+     <label class="row small" style="align-self:end"><input type="checkbox" id="imp-pd" ${IMV.opt.pd?"checked":""} style="width:auto"> إنشاء إجراءات تطوير من توصيات المستويين 3 و4</label></div>
+   <div class="row" style="margin-top:14px;justify-content:space-between"><span class="muted small">المحدد للإدراج: <b class="num">${cnt.inc}</b> زيارة · تُحسب النسبة بمعيار النظام الحالي (100/75/50/25)، ويُحفظ تقدير النظام السابق للمرجعية.</span><button class="btn pri" id="imp-go" ${cnt.inc&&!IMV.busy?"":"disabled"}>إدراج ${cnt.inc} زيارة</button></div>
+  </div>`:""}
+  ${bt.length?`<div class="card" style="margin-top:14px"><h3 style="margin-bottom:8px">دفعات الاستيراد في العام ${esc(S.year)}</h3><div class="tbl-wrap"><table><thead><tr><th>التاريخ</th><th>بواسطة</th><th class="c">الزيارات</th><th>التوزيع حسب الزائر</th><th></th></tr></thead><tbody>
+   ${bt.map(b=>`<tr><td class="num">${fmtD((b.at||"").slice(0,10))}</td><td>${esc(b.by||"")}</td><td class="c num">${b.n}</td><td class="small">${Object.entries(b.roles).map(([k,n])=>`${esc(ROLES[k]||k)}: ${n}`).join(" · ")}</td><td>${can("visit.delete")||S.user.role==="admin"||b.by===S.user.name?`<button class="btn sm danger" data-iundo="${b.id}">حذف الدفعة</button>`:""}</td></tr>`).join("")}</tbody></table></div></div>`:""}
+  <div class="note" style="margin-top:14px"><b>كيف يعمل الاستيراد؟</b> يقرأ ورقة «السجل» من ملف الإكسل (المؤشرات الـ23 بمستوياتها، والتوصيات، ونقاط القوة والتطوير)، ويقرأ استمارات PDF الصادرة من النظام السابق (المعلم، الزائر وصفته، المؤشرات، التوصيات). إذا وُجدت الزيارة نفسها في الملفين تُدمج تلقائيًا ويُؤخذ الزائر من الـPDF. تُضاف زيارة النائب الأكاديمي إلى زيارات النائب، وزيارة المدير إلى زيارات المدير، وزيارة المنسق إلى سجل المنسق، وزيارة الموجه التربوي ضمن زيارات الموجه — وتُرقّم تلقائيًا لكل زائر. سجل الإكسل لا يحتوي اسم الزائر، فإن لم يتوفر PDF مطابق حدّده من شريط «تحديد الزائر». ويمكن تسمية المجلدات باسم الزائر (مثل «النائب الأكاديمي») ليتعرّف عليه النظام تلقائيًا.</div>`;
+}
+function impEdit(rid,patch){ IMV.edits[rid]=Object.assign(IMV.edits[rid]||{},patch); }
+function bindImport(){
+  const pick=inp=>{ if(!inp) return; inp.onchange=e=>{ const fs=[...e.target.files]; e.target.value=""; impHandleFiles(fs); }; };
+  pick($("#imp-files")); pick($("#imp-dir"));
+  const dz=$("#imp-drop"); if(dz){ dz.ondragover=e=>{ e.preventDefault(); dz.classList.add("on"); }; dz.ondragleave=()=>dz.classList.remove("on");
+    dz.ondrop=async e=>{ e.preventDefault(); dz.classList.remove("on"); const out=[]; const items=[...(e.dataTransfer.items||[])].map(i=>i.webkitGetAsEntry&&i.webkitGetAsEntry()).filter(Boolean);
+      const walk=en=>new Promise(res=>{ if(en.isFile) en.file(f=>{ try{ Object.defineProperty(f,"webkitRelativePath",{value:en.fullPath.replace(/^\//,"")}); }catch(_){} out.push(f); res(); },()=>res());
+        else if(en.isDirectory){ const r=en.createReader(); const all=[]; const next=()=>r.readEntries(async es=>{ if(!es.length){ for(const x of all) await walk(x); res(); } else { all.push(...es); next(); } },()=>res()); next(); } else res(); });
+      if(items.length){ for(const en of items) await walk(en); } else out.push(...e.dataTransfer.files); impHandleFiles(out); }; }
+  const c=$("#imp-clear"); if(c) c.onclick=()=>{ IMV.raw=[]; IMV.edits={}; IMV.errors=[]; IMV.prog=""; render(); };
+  $$("[data-impf]").forEach(b=>b.onclick=()=>{ IMV.filter=b.dataset.impf; render(); });
+  $$("[data-iinc]").forEach(x=>x.onchange=()=>{ impEdit(x.dataset.iinc,{inc:x.checked}); render(); });
+  $$("[data-it]").forEach(x=>x.onchange=()=>{ impEdit(x.dataset.it,{teacherId:x.value}); render(); });
+  $$("[data-ir]").forEach(x=>x.onchange=()=>{ const r=impRows().find(y=>y.rid===x.dataset.ir); const cur=r?r.vName||"":""; const known=cur&&impKnownVisitors(x.value).some(c=>nameMatch(c,cur)||nkl(c)===nkl(cur));
+    impEdit(x.dataset.ir,{vRole:x.value,vName:known?cur:(impVisitorName(x.value,"",r&&r.teacherId)||(["sup","peer"].includes(x.value)?cur:""))}); render(); });
+  $$("[data-in]").forEach(x=>x.onchange=()=>{ impEdit(x.dataset.in,{vName:x.value.trim()}); render(); });
+  const all=$("#imp-all"); if(all) all.onchange=()=>{ const rows=impRows(); const F=IMV.filter; rows.filter(r=>F==="all"||(F==="ok"&&r.ok)||(F==="rev"&&!r.ok&&!r.exists&&!r.dup)||(F==="ex"&&(r.exists||r.dup))||(F==="mg"&&r.merged)).forEach(r=>impEdit(r.rid,{inc:all.checked})); render(); };
+  const ba=$("#imp-bapply"); if(ba) ba.onclick=()=>{ const role=$("#imp-br").value, name=$("#imp-bn").value.trim(), tg=$("#imp-bt").value; if(!role){ toast("اختر صفة الزائر"); return; }
+    const rows=impRows(); const files=[...new Set(rows.flatMap(r=>r.files))]; let n=0;
+    rows.forEach(r=>{ const hit=tg==="none"?!r.vRole:tg==="inc"?r.inc:r.files.includes(files[+tg.slice(1)]); if(!hit) return; impEdit(r.rid,{vRole:role,vName:name||impVisitorName(role,"",r.teacherId),inc:undefined}); delete IMV.edits[r.rid].inc; n++; });
+    toast(`طُبّق الزائر على ${n} زيارة`); render(); };
+  const st=$("#imp-st"); if(st) st.onchange=()=>{ IMV.opt.status=st.value; };
+  const ak=$("#imp-ack"); if(ak) ak.onchange=()=>{ IMV.opt.ack=ak.checked; };
+  const pd=$("#imp-pd"); if(pd) pd.onchange=()=>{ IMV.opt.pd=pd.checked; };
+  const go=$("#imp-go"); if(go) go.onclick=()=>{ const n=impRows().filter(r=>r.inc).length; confirmBox(`سيتم إدراج ${n} زيارة في العام ${S.year}، كلٌّ في سجل زائرها. متابعة؟`,impCommit,"إدراج"); };
+  $$("[data-iundo]").forEach(b=>b.onclick=()=>{ const x=impBatches().find(y=>y.id===b.dataset.iundo); confirmBox(`حذف ${x?x.n:""} زيارة مستوردة في هذه الدفعة وما ارتبط بها من إجراءات تطوير؟`,()=>impUndo(b.dataset.iundo),"حذف"); });
+  $$("[data-iprev]").forEach(b=>b.onclick=()=>{ const r=impRows().find(y=>y.rid===b.dataset.iprev); if(!r) return; const t=T(r.teacherId)||{}; const lvTxt=["لم يتم قياسه","الأدلة مستكملة وفاعلة","تتوفر معظم الأدلة","تتوفر بعض الأدلة","الأدلة محدودة أو غير متوفرة"];
+    modal(`معاينة: ${t.name||r.teacherName} – ${r.date?fmtD(r.date):""}`,`<p class="small muted">${esc(r.files.join("، "))}${r.topic?" · الدرس: "+esc(r.topic):""}${r.section?" · "+esc(r.section):""} · ${esc(r.period||"")} · ${esc(ROLES[r.vRole]||"زائر غير محدد")}: ${esc(r.vName||"—")}</p>
+     <div class="tbl-wrap"><table><thead><tr><th>#</th><th>المؤشر</th><th>المستوى</th><th>التوصية</th></tr></thead><tbody>${IND.map(x=>{ const q=r.ratings[x.i]; return `<tr><td class="num">${x.i+1}</td><td class="small">${esc(x.t)}</td><td>${q?`<span class="lv lv${q.l}">${esc(lvTxt[q.l])}</span>`:`<span class="muted small">—</span>`}</td><td class="small">${esc(q&&q.rec||"")}</td></tr>`; }).join("")}</tbody></table></div>
+     ${r.strengths?`<h3 style="margin:12px 0 4px">نقاط القوة</h3><p class="small" style="white-space:pre-line;margin:0">${esc(r.strengths)}</p>`:""}${r.devs?`<h3 style="margin:12px 0 4px">جوانب تحتاج تطويرًا</h3><p class="small" style="white-space:pre-line;margin:0">${esc(r.devs)}</p>`:""}`); });
+}
+
 /* ============ تشغيل ============ */
 initStore();
 </script>
