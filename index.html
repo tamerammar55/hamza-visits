@@ -2038,7 +2038,7 @@ function bindImpact(){
     options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.raw.n}: زيارات ${Math.round(ctx.raw.x)}% · تحصيل ${Math.round(ctx.raw.y)}%`}}},scales:{x:{min:0,max:100,title:{display:true,text:"نسبة الزيارات"},ticks:{callback:v=>v+"%"}},y:{min:0,max:100,title:{display:true,text:"تحصيل الطلاب"},ticks:{callback:v=>v+"%"}}}}});
 }
 
-/* ============ بطاقة الأداء السنوية وأدلة الاعتماد ============ */
+/* ============ بطاقة الأداء السنوية ============ */
 const SC_DEF={practice:50,results:30,pd:20};
 const EV_SRC={practice:"نسبة الممارسات الصفية في الزيارات",assess:"مجال التقويم والتغذية الراجعة في الزيارات",pd:"إنجاز إجراءات خطة التطوير المهني",supervision:"اكتمال دورة الإشراف (لقاء تغذية راجعة + إرسال + اطلاع المعلم)",results:"تحصيل الطلاب في شعب المعلم",calib:"اتفاق الزائرين في جلسات المعايرة (مستوى المدرسة)"};
 const QNSA_DEF=[{std:"التعليم والتعلم – جودة الممارسات الصفية",src:"practice"},{std:"التعليم والتعلم – التقويم والتغذية الراجعة",src:"assess"},{std:"التطوير المهني للعاملين",src:"pd"},{std:"القيادة – الإشراف التربوي والمتابعة",src:"supervision"},{std:"تحصيل الطلاب وتقدمهم",src:"results"}];
@@ -2071,9 +2071,6 @@ function scorecardHTML(tid){
    <table width="100%" style="border-collapse:collapse"><tr>${TH()}#</th>${TH()}الهدف (المؤشر)</th>${TH("text-align:center")}الحالي</th>${TH("text-align:center")}المستهدف</th>${TH()}الإجراء المقترح</th></tr>
    ${goals.length?goals.map((g,i)=>`<tr>${TD("text-align:center")}${i+1}</td>${TD()}${g.x.i+1}. ${esc(g.x.t)}</td>${pcell(g.from)}${TD("text-align:center;font-weight:bold")}${g.to}%</td>${TD("font-size:10.5px")}${esc(g.x.r3||"")}</td></tr>`).join(""):`<tr>${TD()}لا توجد احتياجات بارزة؛ يُقترح هدف للتميّز والتأثير في الزملاء (درس نموذجي أو قيادة مجتمع تعلّم).</td></tr>`}</table>
    <p style="font-size:11px;margin:6px 0 0">إجراءات التطوير هذا العام: <b>${sc.pds.length}</b> إجراءً، أُنجز منها <b>${sc.pdDone}</b> (${pct(sc.pd)}).</p>
-   ${secTitle("أدلة الاعتماد المدرسي (QNSA)","مصدر الدليل من النظام")}
-   <table width="100%" style="border-collapse:collapse"><tr>${TH()}المعيار / المؤشر</th>${TH()}الدليل من نظام الزيارات</th>${TH("text-align:center")}القيمة</th>${TH()}المرجع</th></tr>
-   ${qn.map(q=>{const v=evValue(q.src,sc);return `<tr>${TD("font-weight:bold")}${esc(q.std)}</td>${TD("font-size:10.5px")}${esc(EV_SRC[q.src]||"")}</td>${pcell(v)}${TD("font-size:10px;color:#777")}${q.src==="results"?esc(sc.as||"—"):q.src==="calib"?"جلسات المعايرة":`<span dir="ltr">${sc.vs.map(visitRef).join(" · ")||"—"}</span>`}</td></tr>`}).join("")}</table>
    ${sigBlock([{role:"المعلّم",name:t.name},{role:"منسق القسم",name:c.name||""},...SIG_LEAD()])}`)];
 }
 async function downloadScorecard(tid){ const t=T(tid)||{}; const b=busy("إنشاء بطاقة الأداء السنوية");
@@ -2119,15 +2116,11 @@ function scorecardCard(tid){ const sc=teacherScore(tid);
 function scoreSettingsView(){ const W=Object.assign({},SC_DEF,S.cfg.scw||{}); const qn=S.cfg.qnsa||QNSA_DEF;
   return `<div class="grid g2" style="align-items:start"><div class="card"><h3>أوزان المؤشر المركّب</h3><p class="muted small" style="margin:2px 0 10px">يُعاد توزيع الوزن تلقائيًا إذا غاب أحد المكونات (مثل عدم رفع النتائج).</p>
    <div class="fields">${[["practice","الممارسات الصفية"],["results","تحصيل الطلاب"],["pd","خطة التطوير المهني"]].map(([k,l])=>`<label class="f">${l} (%)<input type="number" min="0" max="100" class="sc-w" data-k="${k}" value="${W[k]}"></label>`).join("")}</div></div>
-   <div class="card"><h3>ربط أدلة الاعتماد المدرسي (QNSA)</h3><p class="muted small" style="margin:2px 0 10px">اكتب اسم المعيار أو المؤشر ورقمه كما في دليل الاعتماد المعتمد لديكم، واختر مصدر الدليل من النظام.</p>
-   <div class="grid" style="gap:8px">${qn.map((q,i)=>`<div class="row"><input class="qn-s" data-i="${i}" value="${esc(q.std)}" style="flex:2;min-width:200px"><select class="qn-r" data-i="${i}" style="flex:1;min-width:180px">${Object.entries(EV_SRC).map(([k,v])=>`<option value="${k}" ${q.src===k?"selected":""}>${v}</option>`).join("")}</select><button class="btn sm danger" data-qdel="${i}">حذف</button></div>`).join("")}</div>
-   <button class="btn sm" id="qn-add" style="margin-top:8px">+ معيار</button></div></div>
+   </div>
    <div class="row" style="margin-top:12px;justify-content:flex-end"><button class="btn pri" id="sc-save">حفظ</button></div>`; }
 function bindScoreSettings(){
   const read=()=>{ const qn=$$(".qn-s").map(e=>({std:e.value.trim(),src:$(`.qn-r[data-i="${e.dataset.i}"]`).value})); const W={}; $$(".sc-w").forEach(e=>W[e.dataset.k]=Math.max(0,+e.value||0)); return {qn,W}; };
-  $("#qn-add").onclick=()=>{ const {qn,W}=read(); qn.push({std:"",src:"practice"}); S.cfg.qnsa=qn; S.cfg.scw=W; render(); };
-  $$("[data-qdel]").forEach(b=>b.onclick=()=>{ const {qn,W}=read(); qn.splice(+b.dataset.qdel,1); S.cfg.qnsa=qn; S.cfg.scw=W; render(); });
-  $("#sc-save").onclick=async()=>{ const {qn,W}=read(); S.cfg.qnsa=qn.filter(q=>q.std); S.cfg.scw=W; await saveCfg(); logAct("تعديل إعدادات البطاقة والاعتماد",""); toast("حُفظت الإعدادات"); render(); };
+  $("#sc-save").onclick=async()=>{ const {W}=read(); S.cfg.scw=W; await saveCfg(); logAct("تعديل أوزان بطاقة الأداء",""); toast("حُفظت الإعدادات"); render(); };
 }
 
 /* ============ وحدة المعايرة ============ */
@@ -2370,7 +2363,7 @@ function bindStaffSettings(){
 /* ============ المستخدمون والصلاحيات وسجل العمليات ============ */
 let STAB = "staff";
 function settingsTabs(){
-  const tabs=[]; if(can("staff.manage")) tabs.push(["staff","الأعوام والكادر"],["score","البطاقة وأدلة الاعتماد"]); if(can("users.manage")) tabs.push(["users","المستخدمون والصلاحيات"],["log","سجل العمليات"]);
+  const tabs=[]; if(can("staff.manage")) tabs.push(["staff","الأعوام والكادر"],["score","بطاقة الأداء"]); if(can("users.manage")) tabs.push(["users","المستخدمون والصلاحيات"],["log","سجل العمليات"]);
   if(!tabs.some(t=>t[0]===STAB)) STAB=tabs[0][0];
   return `<div class="pill-tabs">${tabs.map(([k,t])=>`<button data-stab="${k}" aria-pressed="${STAB===k}">${t}</button>`).join("")}</div>`;
 }
