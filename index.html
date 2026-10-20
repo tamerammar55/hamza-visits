@@ -1008,7 +1008,7 @@ function loginView(){
   if(acctMode()) return `<div class="login">${head}<div class="card" style="max-width:460px"><h3 style="margin-bottom:10px">تسجيل الدخول</h3>
    <form id="lg-form" autocomplete="on"><div class="grid" style="gap:10px"><label class="f">اسم المستخدم<input id="lg-u" autocomplete="username" dir="ltr" required></label><label class="f">كلمة المرور<input id="lg-p" type="password" autocomplete="current-password" dir="ltr" required></label></div>
    <div class="row" style="margin-top:12px"><button class="btn pri" type="submit">دخول</button><span class="small" id="lg-msg" style="color:var(--l4)"></span></div></form>
-   <p class="muted small" style="margin:12px 0 0">اسم المستخدم هو الجزء الأول من البريد الوزاري. لنسيان كلمة المرور تواصل مع مدير النظام.</p>${S.mode==="fb"?`<p class="small" style="margin:10px 0 0"><a href="#" id="lg-boot">الإعداد الأول: إنشاء حساب مدير النظام</a></p>`:""}</div></div>`;
+</div></div>`;
   const us=users(); const opts = LG.role? us.filter(u=>u.role===LG.role):[];
   const roleCards=[["principal","مدير المدرسة","اطلاع ومتابعة وتسجيل لجميع الفئات"],["deputy","النائب الأكاديمي","تقييم جميع المعلمين والمنسقين"],["coord","منسق القسم","زيارة معلمي القسم وتوثيق زيارات الموجه"],["teacher","المعلم","الاطلاع على زياراته والتأمل الذاتي وخطته"]];
   return `<div class="login">${head}
