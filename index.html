@@ -745,6 +745,8 @@ function fbInit(){
     else if(off){ off=false; fdb.enableNetwork().catch(function(){}); } });
 }catch(e){} })();
   S.mode="fb"; S.visits={}; S.pd={}; S.log=[]; S.root=migrate(DEFAULT_CFG); S.year=lsGet("hamza-year",null)||S.root.activeYear; applyYear(); S.ready=true; S.fbLoading=true; render();
+  /* حارس: إذا اكتمل التحميل وبقيت شاشة "جارٍ الاتصال" ظاهرة، أعد رسم الصفحة تلقائيًا */
+  setInterval(()=>{ try{ if(S.user&&!S.fbLoading&&document.querySelector("#app .login")) render(); }catch(e){ console.error(e); } },1000);
   FB.auth.onAuthStateChanged(async user=>{
     fbUnsubAll(); S.visits={}; S.pd={}; S.log=[]; S.fbUsers=[];
     if(!user){ FB.udoc=null; S.user=null; S.fbLoading=false; render(); return; }
@@ -753,7 +755,7 @@ function fbInit(){
     FB.udoc=Object.assign({uid:user.uid},ud.data()); S.fbLoading=true;
     let first=true;
     FB.unsubs.push(FB.db.doc("cfg/main").onSnapshot(s=>{ S.root=s.exists?migrate(s.data()):migrate(DEFAULT_CFG); S.cfgFromStore=s.exists; if(!S.root.years[S.year]) S.year=lsGet("hamza-year",null)||S.root.activeYear; applyYear(); _idc=null;
-      S.user=fbUserFromDoc(); if(first){ first=false; S.fbLoading=false; const sess=lsGet("hamza-sess",null); const v=sess&&VIEWS.find(x=>x.k===sess.view); S.view=v&&v.ok()?sess.view:homeView(); fbSubscribe(); render(); } else softRerender(); },e=>{ toast(fbErr(e)); }));
+      S.user=fbUserFromDoc(); if(first){ first=false; S.fbLoading=false; const sess=lsGet("hamza-sess",null); const v=sess&&VIEWS.find(x=>x.k===sess.view); S.view=v&&v.ok()?sess.view:homeView(); try{ fbSubscribe(); }catch(e){ console.error(e); } setTimeout(()=>{ try{ render(); }catch(e){ console.error(e); } },0); } else softRerender(); },e=>{ toast(fbErr(e)); }));
   });
 }
 function fbSubscribe(){
