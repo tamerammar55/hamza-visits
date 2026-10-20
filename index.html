@@ -271,6 +271,7 @@ div.f{display:flex;flex-direction:column;gap:4px;font-size:.82rem;font-weight:60
 .rb-g{font-size:.72rem;color:var(--gold-ink);font-weight:700;margin:8px 4px 2px}
 .rb-it{display:flex;gap:8px;align-items:flex-start;padding:6px;border-radius:6px;font-weight:500;color:var(--ink);font-size:.84rem;cursor:pointer;line-height:1.6}
 .rb-it:hover{background:var(--surface-2)}.rb-it input{width:auto;margin-top:5px;flex:none;accent-color:var(--maroon)}.rb-it span{flex:1}
+.rb-it[hidden]{display:none}.rb-tags{display:block;color:var(--gold-ink);font-size:.72rem;font-weight:600;margin-top:2px}.rb-q{margin:6px 0 2px;padding:6px 10px;font-size:.84rem}.rb-morebtn{margin:4px 0;color:var(--maroon-2)}
 .rb-del{border:0;background:none;color:var(--l4);cursor:pointer;font-size:1.1rem;line-height:1;padding:0 4px}
 .rb-foot{position:sticky;bottom:0;background:var(--surface);padding:6px 0;border-top:1px dashed var(--line);margin-top:6px;display:flex;justify-content:flex-end}
 .ind-more textarea{min-height:58px;font-size:.86rem}
@@ -995,24 +996,44 @@ function formView(){
   <aside class="card" id="f-sum">${sumPanel()}</aside></div>`;
 }
 const recNorm = s=>String(s||"").replace(/^[\s\-–•]+/,"").trim();
-function recBankItems(i,l){ const x=IND[i]; const sug=[...new Set([l===2?x.r2:null,l<=3?x.r3:null,x.r4,x.g].filter(Boolean).map(s=>s.trim()))];
+function recBankItems(i,l){ const x=IND[i]; const sug=[l===2?(x.r2||x.m):null,l===3?x.r3:null,l===4?x.r4:null].filter(Boolean).map(s=>s.trim());
   const old=(OLDRECS[i]||[]).filter(t=>!sug.includes(t)); const cus=((S.cfg.recx||{})[i]||[]).filter(t=>!sug.includes(t)&&!old.includes(t)); return {sug,old,cus}; }
+const recStem = w=>w.replace(/^(وال|بال|كال|فال|لل|ال|و|ب)/,"").replace(/(ات|ون|ين|ها|هم|ه)$/,"").slice(0,5);
+function recRank(i){ const r=F.ratings[i]||{}; const l=r.l; const x=IND[i]; const items=[];
+  const add=(t,src)=>{ t=String(t||"").trim(); if(!t||items.some(o=>o.t===t)) return; items.push({t,src,s:0,tags:[]}); };
+  add(l===2?(x.r2||x.m):l===3?x.r3:l===4?x.r4:"","sug"); (OLDRECS[i]||[]).forEach(t=>add(t,"old")); ((S.cfg.recx||{})[i]||[]).forEach(t=>add(t,"cus"));
+  if(l===2) add(x.r3,"alt"); if(l===3) add(x.r4,"alt"); if(l===4) add(x.r3,"alt");
+  const ev=new Set(normAr(r.n||"").split(/[^ء-ي]+/).filter(w=>w.length>3).map(recStem));
+  const stemsOf=t=>[...new Set(normAr(t).split(/[^ء-ي]+/).filter(w=>w.length>3).map(recStem))]; const df={}; items.forEach(o=>stemsOf(o.t).forEach(w=>{ df[w]=(df[w]||0)+1; }));
+  const use={}, mine={}; Object.values(S.visits).forEach(v=>{ if(v.id===F.id) return; const q=(v.ratings||{})[i]; if(!q||!q.rec) return;
+    String(q.rec).split("\n").map(recNorm).forEach(s=>{ if(!s) return; use[s]=(use[s]||0)+1; if(v.teacherId===F.teacherId&&(!mine[s]||v.date>mine[s])) mine[s]=v.date; }); });
+  items.forEach(o=>{ if(o.src==="sug"){ o.s+=60; o.tags.push("مقترحة للمستوى "+l); } if(o.src==="alt") o.s+=4; if(o.src==="cus"){ o.s+=8; o.tags.push("أضافها زائر"); }
+    const u=use[o.t]||0; if(u){ o.s+=Math.min(u,10)*3; o.tags.push(`استُخدمت ${u} مرة`); }
+    if(ev.size){ const m=stemsOf(o.t).filter(w=>ev.has(w)&&(df[w]||0)<=Math.max(1,items.length*0.35)).length; if(m){ o.s+=m*15; o.tags.push("تطابق ما سجّلته في الأدلة"); } }
+    if(mine[o.t]){ o.s+=3; o.tags.unshift(`سبق تقديمها للمعلم ${fmtD(mine[o.t])}`); } });
+  return items.sort((a,b)=>b.s-a.s); }
 const canEditBank = ()=>!!S.user&&(S.user.role==="admin"||isLead());
-function recBankHTML(i,rec,l){ const {sug,old,cus}=recBankItems(i,l); const lines=new Set(String(rec).split("\n").map(recNorm).filter(Boolean));
-  const n=sug.length+old.length+cus.length; const sel=[...sug,...old,...cus].filter(t=>lines.has(t)).length;
-  const item=(t,del)=>`<label class="rb-it"><input type="checkbox" data-rb="${i}" value="${esc(t)}" ${lines.has(t)?"checked":""}><span>${esc(t)}</span>${del?`<button type="button" class="rb-del" data-rbdel="${i}" data-t="${esc(t)}" title="حذف من البنك" aria-label="حذف من البنك">×</button>`:""}</label>`;
-  return `<details class="rbank"><summary>${ico("list",14)} بنك توصيات المؤشر <span class="muted">(${n})</span><span class="chip rb-cnt" ${sel?"":"hidden"}>${sel} مختارة</span><span class="rb-arr">▾</span></summary><div class="rb-pop">
-   <div class="rb-g">مقترحة حسب المستوى</div>${sug.map(t=>item(t)).join("")}
-   ${old.length?`<div class="rb-g">بنك التوصيات المعتمد في المدرسة</div>${old.map(t=>item(t)).join("")}`:""}
-   ${cus.length?`<div class="rb-g">توصيات أضافها الزائرون</div>${cus.map(t=>item(t,canEditBank())).join("")}`:""}
-   <div class="rb-foot"><button type="button" class="btn sm" data-rbsave="${i}" title="يضيف ما كتبته بنفسك في المربع إلى بنك هذا المؤشر ليستخدمه بقية الزائرين">＋ حفظ ما كتبته في البنك</button></div></div></details>`; }
+function recBankHTML(i,rec,l){ const n=String(rec).split("\n").map(recNorm).filter(Boolean).length;
+  return `<details class="rbank" data-rbi="${i}"><summary>${ico("list",14)} اقتراحات ذكية من بنك التوصيات<span class="chip rb-cnt" ${n?"":"hidden"}>${n} في المربع</span><span class="rb-arr">▾</span></summary><div class="rb-pop"></div></details>`; }
+function recBankBody(i){ const ta=$(`.f-rec[data-i="${i}"]`); const lines=new Set((ta?ta.value:"").split("\n").map(recNorm).filter(Boolean)); const all=recRank(i);
+  const sel=all.filter(o=>lines.has(o.t)), rest=all.filter(o=>!lines.has(o.t)); const top=rest.slice(0,3), more=rest.slice(3);
+  const item=o=>`<label class="rb-it"><input type="checkbox" data-rb="${i}" value="${esc(o.t)}" ${lines.has(o.t)?"checked":""}><span>${esc(o.t)}${o.tags.length?`<small class="rb-tags">${o.tags.map(esc).join(" · ")}</small>`:""}</span>${o.src==="cus"&&canEditBank()?`<button type="button" class="rb-del" data-rbdel="${i}" data-t="${esc(o.t)}" title="حذف من البنك" aria-label="حذف من البنك">×</button>`:""}</label>`;
+  return `${all.length>6?`<input class="rb-q" type="search" placeholder="ابحث في توصيات هذا المؤشر…" aria-label="بحث في التوصيات">`:""}
+   ${sel.length?`<div class="rb-g">في المربع الآن</div>${sel.map(item).join("")}`:""}
+   ${top.length?`<div class="rb-g">الأنسب لهذا المؤشر${(F.ratings[i]||{}).n?" ولما سجّلته من أدلة":""}</div>${top.map(item).join("")}`:""}
+   ${more.length?`<div class="rb-more" hidden><div class="rb-g">بقية توصيات المؤشر</div>${more.map(item).join("")}</div><button type="button" class="btn ghost sm rb-morebtn">عرض ${more.length} توصيات أخرى</button>`:""}
+   <div class="rb-foot"><button type="button" class="btn sm" data-rbsave="${i}" title="يضيف ما كتبته بنفسك في المربع إلى بنك هذا المؤشر ليستخدمه بقية الزائرين">＋ حفظ ما كتبته في البنك</button></div>`; }
+function fillRecBank(d){ const i=+d.dataset.rbi; const pop=$(".rb-pop",d); readForm(); pop.innerHTML=recBankBody(i); bindRecBank(pop);
+  const mb=$(".rb-morebtn",pop); if(mb) mb.onclick=()=>{ $(".rb-more",pop).hidden=false; mb.remove(); };
+  const q=$(".rb-q",pop); if(q) q.oninput=()=>{ const k=normAr(q.value); const mo=$(".rb-more",pop); if(k&&mo){ mo.hidden=false; const b=$(".rb-morebtn",pop); if(b) b.remove(); } $$(".rb-it",pop).forEach(it=>{ it.hidden=!!k&&!normAr(it.textContent).includes(k); }); }; }
 function rerenderInd(i,open){ readForm(); const el=$("#ind-"+i); if(!el) return; const tmp=document.createElement("div"); tmp.innerHTML=indRow(IND[i]); el.replaceWith(tmp.firstElementChild); bindIndRow(i); if(open){ const d=$(`#ind-${i} details.rbank`); if(d) d.open=true; } }
 function bindRecBank(scope){
+  $$("details.rbank",scope).forEach(d=>d.ontoggle=()=>{ if(d.open) fillRecBank(d); });
   $$("[data-rb]",scope).forEach(c=>c.onchange=()=>{ const i=c.dataset.rb; const ta=$(`.f-rec[data-i="${i}"]`); if(!ta) return; const t=c.value;
     let lines=ta.value.split("\n").map(s=>s.trim()).filter(Boolean);
     if(c.checked){ if(!lines.some(s=>recNorm(s)===t)) lines.push(t); } else lines=lines.filter(s=>recNorm(s)!==t);
     ta.value=lines.join("\n"); ta.rows=Math.min(8,Math.max(3,lines.length*2+1)); F._dirty=true; readForm(); updateActionPick&&updateActionPick();
-    const d=c.closest("details"); const n=$$("[data-rb]:checked",d).length; const ch=$(".rb-cnt",d); if(ch){ ch.hidden=!n; ch.textContent=n+" مختارة"; } });
+    const d=c.closest("details"); const n=lines.length; const ch=$(".rb-cnt",d); if(ch){ ch.hidden=!n; ch.textContent=n+" في المربع"; } });
   $$("[data-rbsave]",scope).forEach(b=>b.onclick=async()=>{ const i=+b.dataset.rbsave; const ta=$(`.f-rec[data-i="${i}"]`); const r=F.ratings[i]||{}; const {sug,old,cus}=recBankItems(i,r.l);
     const all=new Set([...sug,...old,...cus,...((S.cfg.recx||{})[i]||[])]); const nw=[...new Set(ta.value.split("\n").map(recNorm).filter(s=>s.length>8&&!all.has(s)))];
     if(!nw.length){ toast("اكتب توصية جديدة في المربع أولًا، ثم احفظها في البنك"); return; }
