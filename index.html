@@ -106,6 +106,7 @@ html.side-mini .side-mini-b svg{transform:scaleX(-1)}
 .burger{display:none;background:transparent;border:1px solid rgba(255,255,255,.4);color:var(--on-maroon);border-radius:8px;width:38px;height:34px;place-items:center;cursor:pointer;flex:none}
 .side-bg{display:none}
 .bnav{display:none}
+.imp-need{background:var(--gold-soft);border:1px solid var(--gold);border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:.88rem}.imp-done{border-color:var(--l1);background:color-mix(in srgb,var(--l1-bg) 60%,var(--surface))}
 .imp-drop{border:2px dashed var(--line);transition:border-color .15s,background .15s}.imp-drop.on{border-color:var(--gold);background:var(--gold-soft)}
 .imp-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--surface-2);padding:8px 10px;border-radius:8px}.imp-bar select,.imp-bar input{width:auto;min-width:150px;flex:1 1 150px}
 .imp-tbl td{vertical-align:middle}.imp-tbl select,.imp-tbl input{font-size:.82rem;padding:5px 8px}tr.imp-warn td{background:color-mix(in srgb,var(--l4-bg) 45%,transparent)}
@@ -2590,6 +2591,7 @@ async function impCommit(){ const rows=impRows().filter(r=>r.inc); if(!rows.leng
       const v=impToVisit(r,batch); await put("visits",v); ok++;
       if(IMV.opt.pd){ for(const x of IND){ const q=v.ratings[x.i]||{}; if((q.l===3||q.l===4)&&(q.rec||"").trim()){ await put("pd",{id:uid(),type:"ind",teacherId:v.teacherId,deptId:v.deptId,visitId:v.id,ind:x.i,level:q.l,text:q.rec.trim(),priority:false,due:addDays(v.date,21),status:"open",progress:"",createdBy:S.user.key,createdAt:new Date().toISOString(),imp:batch}); pdn++; } } }
       const done=new Set([r.rid].concat(r.mergedIds||[])); IMV.raw=IMV.raw.filter(x=>!done.has(x.rid)); }
+    IMV.done={n:ok,roles:rows.reduce((a,r)=>{a[r.vRole]=(a[r.vRole]||0)+1;return a;},{})};
     logAct("استيراد زيارات سابقة",`${ok} زيارة${pdn?` و${pdn} إجراء تطوير`:""} – الدفعة ${batch}`); toast(`أُدرجت ${ok} زيارة في سجلات زائريها`);
     IMV.prog=`تم إدراج ${ok} زيارة (الدفعة ${fmtD(new Date().toISOString().slice(0,10))}).`;
   }catch(e){ toast("توقف الإدراج: "+(e.message||e)); }
@@ -2615,8 +2617,15 @@ function importView(){
     <div class="row"><label class="btn pri">اختيار ملفات<input type="file" id="imp-files" multiple accept=".xlsx,.xlsm,.xls,.pdf,.zip" hidden></label><label class="btn">اختيار مجلد<input type="file" id="imp-dir" webkitdirectory multiple hidden></label>${IMV.raw.length?`<button class="btn ghost" id="imp-clear">مسح القائمة</button>`:""}</div></div>
     <p class="small" id="imp-prog" style="margin:10px 0 0;color:var(--maroon-2);font-weight:600">${esc(IMV.prog||"")}</p>
     ${IMV.errors.length?`<details class="small" style="margin-top:6px"><summary style="color:var(--l4);cursor:pointer">${IMV.errors.length} ملف لم يُقرأ</summary><ul class="list-plain">${IMV.errors.map(e=>`<li>${esc(e)}</li>`).join("")}</ul></details>`:""}</div>
+  ${IMV.done?`<div class="card imp-done" style="margin-top:14px"><div class="row" style="justify-content:space-between"><div><b>تم إدراج ${IMV.done.n} زيارة في العام ${esc(S.year)}</b><div class="muted small">${Object.entries(IMV.done.roles).map(([k,n])=>`${esc(ROLES[k]||k)}: ${n}`).join(" · ")} — تظهر كل زيارة في «زياراتي» لصاحبها فقط، وتظهر جميعها في «سجل زيارات المدرسة» وملف كل معلم.</div></div>
+    <div class="row">${VIEWS.find(v=>v.k==="listAll").ok()?`<button class="btn pri" data-igo="listAll">سجل زيارات المدرسة</button>`:""}<button class="btn" data-igo="list">زياراتي</button><button class="btn ghost" id="imp-done-x">إخفاء</button></div></div></div>`:""}
   ${rows.length?`<div class="card" style="margin-top:14px">
    <div class="pill-tabs" role="group">${[["all","الكل",cnt.all],["ok","جاهزة",cnt.ok],["rev","تحتاج مراجعة",cnt.rev],["ex","موجودة/مكررة",cnt.ex],["mg","مدمجة Excel+PDF",cnt.mg]].map(([k,t,n])=>`<button data-impf="${k}" aria-pressed="${F===k}">${t} <b class="num">${n}</b></button>`).join("")}</div>
+   ${(()=>{ const nv=rows.filter(r=>!r.vRole&&!r.exists&&!r.dup).length; if(!nv) return ""; const qb=[];
+      S.cfg.deputies.forEach((d,i)=>{ if(d.name) qb.push(`<button class="btn sm" data-iq="deputy|${i}">${esc(ROLES.deputy)}: ${esc(d.name)}</button>`); });
+      if(S.cfg.principal.name) qb.push(`<button class="btn sm" data-iq="principal|0">${esc(ROLES.principal)}: ${esc(S.cfg.principal.name)}</button>`);
+      qb.push(`<button class="btn sm" data-iq="coord|0">منسق قسم كل معلم (تلقائيًا)</button>`);
+      return `<div class="imp-need"><b>${nv} زيارة بلا زائر</b> — سجل الإكسل في النظام السابق لا يحفظ اسم الزائر، لذلك لن تُدرج حتى تحدده. اختر زائر هذه الزيارات بضغطة واحدة، أو استخدم شريط «تحديد الزائر» لتوزيعها حسب الملف، أو عدّل كل صف على حدة:<div class="row" style="margin-top:8px">${qb.join("")}</div></div>`; })()}
    <div class="imp-bar"><span class="small muted">تحديد الزائر:</span><select id="imp-br">${rOpts("")}</select><input id="imp-bn" list="imp-vl" placeholder="اسم الزائر"><datalist id="imp-vl">${impKnownVisitors().map(n=>`<option value="${esc(n)}">`).join("")}</datalist>
      <select id="imp-bt"><option value="none">للصفوف التي بلا زائر</option><option value="inc">للصفوف المحددة</option>${files.map((f,i)=>`<option value="f${i}">لزيارات ملف: ${esc(f.length>40?f.slice(0,40)+"…":f)}</option>`).join("")}</select><button class="btn sm" id="imp-bapply">تطبيق</button></div>
    <div class="tbl-wrap" style="margin-top:10px"><table class="imp-tbl"><thead><tr><th class="c"><input type="checkbox" id="imp-all" aria-label="تحديد الكل" ${shown.length&&shown.every(r=>r.inc)?"checked":""}></th><th>المعلم</th><th>الزيارة</th><th>الزائر</th><th class="c">المؤشرات</th><th class="c">النسبة</th><th>الحالة</th><th></th></tr></thead><tbody>
@@ -2633,7 +2642,7 @@ function importView(){
    <div class="fields" style="margin-top:14px"><label class="f">حالة الزيارات بعد الإدراج<select id="imp-st"><option value="sent" ${IMV.opt.status==="sent"?"selected":""}>أُرسلت للمعلم (مناسب للزيارات السابقة)</option><option value="closed" ${IMV.opt.status==="closed"?"selected":""}>معتمدة ولم تُرسل</option></select></label>
      <label class="row small" style="align-self:end"><input type="checkbox" id="imp-ack" ${IMV.opt.ack?"checked":""} style="width:auto"> اعتبر المعلم مطّلعًا عليها</label>
      <label class="row small" style="align-self:end"><input type="checkbox" id="imp-pd" ${IMV.opt.pd?"checked":""} style="width:auto"> إنشاء إجراءات تطوير من توصيات المستويين 3 و4</label></div>
-   <div class="row" style="margin-top:14px;justify-content:space-between"><span class="muted small">المحدد للإدراج: <b class="num">${cnt.inc}</b> زيارة · تُحسب النسبة بمعيار النظام الحالي (100/75/50/25)، ويُحفظ تقدير النظام السابق للمرجعية.</span><button class="btn pri" id="imp-go" ${cnt.inc&&!IMV.busy?"":"disabled"}>إدراج ${cnt.inc} زيارة</button></div>
+   <div class="row" style="margin-top:14px;justify-content:space-between"><span class="muted small">المحدد للإدراج: <b class="num">${cnt.inc}</b> زيارة · تُحسب النسبة بمعيار النظام الحالي (100/75/50/25)، ويُحفظ تقدير النظام السابق للمرجعية.</span><button class="btn pri" id="imp-go" ${cnt.inc&&!IMV.busy?"":"disabled"}>${cnt.inc?`إدراج ${cnt.inc} زيارة`:"حدّد الزائر أولًا ثم أدرج"}</button></div>
   </div>`:""}
   ${bt.length?`<div class="card" style="margin-top:14px"><h3 style="margin-bottom:8px">دفعات الاستيراد في العام ${esc(S.year)}</h3><div class="tbl-wrap"><table><thead><tr><th>التاريخ</th><th>بواسطة</th><th class="c">الزيارات</th><th>التوزيع حسب الزائر</th><th></th></tr></thead><tbody>
    ${bt.map(b=>`<tr><td class="num">${fmtD((b.at||"").slice(0,10))}</td><td>${esc(b.by||"")}</td><td class="c num">${b.n}</td><td class="small">${Object.entries(b.roles).map(([k,n])=>`${esc(ROLES[k]||k)}: ${n}`).join(" · ")}</td><td>${can("visit.delete")||S.user.role==="admin"||b.by===S.user.name?`<button class="btn sm danger" data-iundo="${b.id}">حذف الدفعة</button>`:""}</td></tr>`).join("")}</tbody></table></div></div>`:""}
@@ -2648,6 +2657,11 @@ function bindImport(){
       const walk=en=>new Promise(res=>{ if(en.isFile) en.file(f=>{ try{ Object.defineProperty(f,"webkitRelativePath",{value:en.fullPath.replace(/^\//,"")}); }catch(_){} out.push(f); res(); },()=>res());
         else if(en.isDirectory){ const r=en.createReader(); const all=[]; const next=()=>r.readEntries(async es=>{ if(!es.length){ for(const x of all) await walk(x); res(); } else { all.push(...es); next(); } },()=>res()); next(); } else res(); });
       if(items.length){ for(const en of items) await walk(en); } else out.push(...e.dataTransfer.files); impHandleFiles(out); }; }
+  $$("[data-igo]").forEach(x=>x.onclick=()=>go(x.dataset.igo));
+  const dx=$("#imp-done-x"); if(dx) dx.onclick=()=>{ IMV.done=null; render(); };
+  $$("[data-iq]").forEach(x=>x.onclick=()=>{ const [role,i]=x.dataset.iq.split("|"); let n=0;
+    impRows().forEach(r=>{ if(r.vRole||r.exists||r.dup) return; const name=role==="deputy"?S.cfg.deputies[+i].name:impVisitorName(role,"",r.teacherId); impEdit(r.rid,{vRole:role,vName:name}); if(IMV.edits[r.rid]) delete IMV.edits[r.rid].inc; n++; });
+    toast(`حُدّد الزائر لـ ${n} زيارة`); render(); });
   const c=$("#imp-clear"); if(c) c.onclick=()=>{ IMV.raw=[]; IMV.edits={}; IMV.errors=[]; IMV.prog=""; render(); };
   $$("[data-impf]").forEach(b=>b.onclick=()=>{ IMV.filter=b.dataset.impf; render(); });
   $$("[data-iinc]").forEach(x=>x.onchange=()=>{ impEdit(x.dataset.iinc,{inc:x.checked}); render(); });
@@ -2663,7 +2677,7 @@ function bindImport(){
   const st=$("#imp-st"); if(st) st.onchange=()=>{ IMV.opt.status=st.value; };
   const ak=$("#imp-ack"); if(ak) ak.onchange=()=>{ IMV.opt.ack=ak.checked; };
   const pd=$("#imp-pd"); if(pd) pd.onchange=()=>{ IMV.opt.pd=pd.checked; };
-  const go=$("#imp-go"); if(go) go.onclick=()=>{ const n=impRows().filter(r=>r.inc).length; confirmBox(`سيتم إدراج ${n} زيارة في العام ${S.year}، كلٌّ في سجل زائرها. متابعة؟`,impCommit,"إدراج"); };
+  const goBtn=$("#imp-go"); if(goBtn) goBtn.onclick=()=>{ const n=impRows().filter(r=>r.inc).length; confirmBox(`سيتم إدراج ${n} زيارة في العام ${S.year}، كلٌّ في سجل زائرها. متابعة؟`,impCommit,"إدراج"); };
   $$("[data-iundo]").forEach(b=>b.onclick=()=>{ const x=impBatches().find(y=>y.id===b.dataset.iundo); confirmBox(`حذف ${x?x.n:""} زيارة مستوردة في هذه الدفعة وما ارتبط بها من إجراءات تطوير؟`,()=>impUndo(b.dataset.iundo),"حذف"); });
   $$("[data-iprev]").forEach(b=>b.onclick=()=>{ const r=impRows().find(y=>y.rid===b.dataset.iprev); if(!r) return; const t=T(r.teacherId)||{}; const lvTxt=["لم يتم قياسه","الأدلة مستكملة وفاعلة","تتوفر معظم الأدلة","تتوفر بعض الأدلة","الأدلة محدودة أو غير متوفرة"];
     modal(`معاينة: ${t.name||r.teacherName} – ${r.date?fmtD(r.date):""}`,`<p class="small muted">${esc(r.files.join("، "))}${r.topic?" · الدرس: "+esc(r.topic):""}${r.section?" · "+esc(r.section):""} · ${esc(r.period||"")} · ${esc(ROLES[r.vRole]||"زائر غير محدد")}: ${esc(r.vName||"—")}</p>
