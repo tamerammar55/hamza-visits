@@ -737,6 +737,13 @@ function fbUserFromDoc(){ const d=FB.udoc; if(!d) return null; const r=resolveAc
 function fbInit(){
   FB.app=firebase.initializeApp(FB_CONFIG); FB.auth=firebase.auth(); FB.db=firebase.firestore();
   try{ FB.db.enablePersistence({synchronizeTabs:true}).catch(()=>{}); }catch(_){}
+
+/* === إصلاح التشغيل المتزامن للأنظمة: تحرير اتصال Firestore عند ترك التبويب في الخلفية === */
+(function(){ try{ var fdb=firebase.firestore(), t=null, off=false;
+  document.addEventListener('visibilitychange',function(){ clearTimeout(t);
+    if(document.hidden){ t=setTimeout(function(){ fdb.disableNetwork().then(function(){off=true;}).catch(function(){}); },30000); }
+    else if(off){ off=false; fdb.enableNetwork().catch(function(){}); } });
+}catch(e){} })();
   S.mode="fb"; S.visits={}; S.pd={}; S.log=[]; S.root=migrate(DEFAULT_CFG); S.year=lsGet("hamza-year",null)||S.root.activeYear; applyYear(); S.ready=true; S.fbLoading=true; render();
   FB.auth.onAuthStateChanged(async user=>{
     fbUnsubAll(); S.visits={}; S.pd={}; S.log=[]; S.fbUsers=[];
@@ -1004,7 +1011,7 @@ function loginWrap(html){
 let LG={role:null,fails:0,until:0};
 function loginView(){
   const head=`${bannerSrc()?`<div class="login-banner"><img src="${bannerSrc()}" alt="${esc(S.cfg.school)}"></div>`:""}<div class="hero"><div class="logo">${logoHTML()}</div><div><div class="eyebrow">${esc(S.cfg.school)}</div><h1>نظام الزيارات الصفية</h1><p class="muted" style="margin:0">وفق استمارة الإشراف على أداء معلّم المعتمدة</p><label class="row small" style="margin-top:6px">العام الأكاديمي ${yearSelect("lg-yr")}</label></div></div>`;
-  if(S.mode==="fb"&&S.fbLoading) return `<div class="login">${head}<div class="card" style="max-width:460px"><p class="muted">جارٍ الاتصال بقاعدة البيانات…</p></div></div>`;
+  if(S.mode==="fb"&&S.fbLoading) return `<div class="login">${head}<div class="card" style="max-width:460px"><p class="muted">جارٍ الاتصال بقاعدة البيانات…</p><p class="muted" style="font-size:.85em">إذا طال الانتظار: <button class="btn" onclick="location.reload()">إعادة المحاولة</button></p></div></div>`;
   if(acctMode()) return `<div class="login">${head}<div class="card" style="max-width:460px"><h3 style="margin-bottom:10px">تسجيل الدخول</h3>
    <form id="lg-form" autocomplete="on"><div class="grid" style="gap:10px"><label class="f">اسم المستخدم<input id="lg-u" autocomplete="username" dir="ltr" required></label><label class="f">كلمة المرور<input id="lg-p" type="password" autocomplete="current-password" dir="ltr" required></label></div>
    <div class="row" style="margin-top:12px"><button class="btn pri" type="submit">دخول</button><span class="small" id="lg-msg" style="color:var(--l4)"></span></div></form>
