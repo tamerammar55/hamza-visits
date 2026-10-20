@@ -461,7 +461,7 @@ function fbSubscribe(){
 async function fbLogin(u,p){ await FB.auth.signInWithEmailAndPassword(FB_MAIL(u),fbPass(p)); }
 async function fbBootstrap(u,p,name){
   const cred=await FB.auth.createUserWithEmailAndPassword(FB_MAIL(u),fbPass(p)); const uid=cred.user.uid;
-  try{ const b=FB.db.batch(); b.set(FB.db.doc("meta/bootstrap"),{by:uid,at:new Date().toISOString()}); b.set(FB.db.doc("users/"+uid),{u:u.toLowerCase(),name,role:"admin",dept:""}); await b.commit(); }
+  try{ const b=FB.db.batch(); b.set(FB.db.doc("meta/bootstrap"),{by:uid,at:new Date().toISOString()}); b.set(FB.db.doc("users/"+uid),{u:u.toLowerCase(),name,role:"admin",dept:"",disabled:false}); await b.commit(); }
   catch(e){ try{ await cred.user.delete(); }catch(_){} throw new Error("تم الإعداد الأول مسبقًا؛ ادخل بحساب مدير النظام."); }
 }
 function fbCreator(){ const ex=firebase.apps.find(a=>a.name==="creator"); const app=ex||firebase.initializeApp(FB_CONFIG,"creator"); const a=app.auth(); try{ a.setPersistence(firebase.auth.Auth.Persistence.NONE); }catch(_){} return a; }
@@ -483,7 +483,7 @@ service cloud.firestore {
     function signedIn() { return request.auth != null; }
     function uref() { return /databases/$(database)/documents/users/$(request.auth.uid); }
     function me() { return get(uref()).data; }
-    function active() { return signedIn() && exists(uref()) && me().disabled != true; }
+    function active() { return signedIn() && exists(uref()) && me().get('disabled', false) != true; }
     function role() { return me().role; }
     function lead() { return active() && role() in ['admin', 'principal', 'deputy']; }
     function staff() { return active() && role() in ['admin', 'principal', 'deputy', 'coord']; }
