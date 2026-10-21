@@ -106,6 +106,9 @@ html.side-mini .side-mini-b svg{transform:scaleX(-1)}
 .burger{display:none;background:transparent;border:1px solid rgba(255,255,255,.4);color:var(--on-maroon);border-radius:8px;width:38px;height:34px;place-items:center;cursor:pointer;flex:none}
 .side-bg{display:none}
 .bnav{display:none}
+.sc-wrap{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:14px;align-items:start}.sc-img{position:sticky;top:0;max-height:75vh;overflow:auto;border:1px solid var(--line);border-radius:8px;background:#fff;padding:6px}.sc-img img{width:100%;display:block;margin-bottom:6px;cursor:zoom-in}.sc-img img.zoom{width:200%;max-width:none;cursor:zoom-out}
+.sc-form{max-height:75vh;overflow:auto;padding-inline-end:4px}.sc-dom{background:var(--maroon);color:#fff;font-weight:700;font-size:.82rem;padding:4px 10px;border-radius:6px;margin:10px 0 4px}.sc-ind{display:grid;grid-template-columns:1fr auto;gap:4px 8px;padding:6px 0;border-bottom:1px dashed var(--line);align-items:center}.sc-t{font-size:.84rem}.sc-rec{grid-column:1/-1;font-size:.8rem;padding:4px 8px}
+@media (max-width:900px){.sc-wrap{grid-template-columns:1fr}.sc-img{position:static;max-height:50vh}}
 .sig-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:10px;margin-top:8px}.sig-box{border:1px solid var(--line);border-radius:8px;padding:10px;text-align:center;background:var(--surface)}.sig-img{height:74px;display:grid;place-items:center;margin:6px 0;background:#fff;border-radius:6px;border:1px dashed var(--line)}.sig-img img{max-height:66px;max-width:100%}
 .ws-list{display:grid;gap:10px;margin-top:12px}.ws{border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--surface)}
 .ws-h{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px}.ws-n{width:30px;height:30px;border-radius:50%;background:var(--maroon);color:#fff;display:grid;place-items:center;font-weight:700;flex:none}
@@ -2503,14 +2506,15 @@ function impVocab(){ const sig=S.year; if(_vocab&&_vocabSig===sig) return _vocab
   const add=s=>stripT(s).split(/[^ء-ي]+/).forEach(w=>{ if(w.length>=2) v.add(w); });
   add(OLD_VOCAB_RAW); BANK.items.forEach(x=>Object.values(x).forEach(add)); add(BANK.gen); allTeachers().forEach(t=>add(t.name)); S.cfg.depts.forEach(d=>add(d.name));
   add(DOMAINS.join(" ")); add(S.cfg.school); add(S.cfg.principal.name); S.cfg.deputies.forEach(d=>add(d.name)); add(Object.values(ROLES).join(" ")); add(PERIODS.join(" ")); add(MODES.join(" "));
-  add("سابع ثامن تاسع ميدانية كلية جزئية الزائر المعلم الحصة الأكاديمي النائب المدير المدرسة المنسق الموجه التربوي ملاحظات الطلاب الطلبة خلال الأخلاق الإسلامية العلاقات المتعلم المتعلمين المعلمين الأنشطة الأسئلة الإستراتيجيات الإلكتروني التعليمية الصفية المرغوبة المنطقي المعروضة المحدد المهام والتعليمات للطلاب المخطط الفاعلة الأمثل الاستثمار الأهداف للتفكير التعلم والمشاركات الفعالة البنائي الغلق المستويات متنوعة التحضير تحضير خبرات الخبرات خبراتهم مشاركة المشاركة مشاركة خبرات إستراتيجات الإستراتيجات إستراتيجيات الإستراتيجيات استراتيجيات الاستراتيجيات الإستراتيجية إستراتيجية تطبيقية تطبيقي معايير المعايير التفكير تفكير مثيرة غير التعبير الكبير كبير تيسير التيسير الحوار تقرير التقرير تقارير توفير تطوير التطوير تغيير التغيير مستمر مستمرة تأثير المباشر مباشر يشير تشير السير الدير الكثير كثير تحرير التحرير الأخير الأخيرة أخير تدريب التدريب الصغيرة صغيرة المجموعات والمشاركة المشاركات بفاعلية فاعلية وفاعلية");
+  add("سابع ثامن تاسع ميدانية كلية جزئية الزائر المعلم الحصة الأكاديمي النائب المدير المدرسة المنسق الموجه التربوي ملاحظات الطلاب الطلبة خلال الأخلاق الإسلامية العلاقات المتعلم المتعلمين المعلمين الأنشطة الأسئلة الإستراتيجيات الإلكتروني التعليمية الصفية المرغوبة المنطقي المعروضة المحدد المهام والتعليمات للطلاب المخطط الفاعلة الأمثل الاستثمار الأهداف للتفكير التعلم والمشاركات الفعالة البنائي الغلق المستويات متنوعة التحضير تحضير خبرات الخبرات خبراتهم مشاركة المشاركة مشاركة خبرات إستراتيجات الإستراتيجات إستراتيجيات الإستراتيجيات استراتيجيات الاستراتيجيات الإستراتيجية إستراتيجية تطبيقية تطبيقي معايير المعايير التفكير تفكير مثيرة غير التعبير الكبير كبير تيسير التيسير الحوار تقرير التقرير تقارير توفير تطوير التطوير تغيير التغيير مستمر مستمرة تأثير المباشر مباشر يشير تشير السير الدير الكثير كثير تحرير التحرير الأخير الأخيرة أخير تدريب التدريب الصغيرة صغيرة المجموعات والمشاركة المشاركات بفاعلية فاعلية وفاعلية الزميل الفاضل الزملاء الأستاذ الأخ الكريم أدائه النجاح التقدم والنجاح مزيد");
   _vocab=v; _vocabSig=sig; return v; }
 function fixWord2(b,V){ const pos=[]; for(let i=0;i<b.length-1;i++){ if(b[i+1]==="ل"&&/[اأإآمجحخى]/.test(b[i])) pos.push(i); } if(!pos.length||pos.length>8) return ""; for(let m=1;m<(1<<pos.length);m++){ const a=b.split(""); for(let k=0;k<pos.length;k++) if(m&(1<<k)){ const i=pos[k]; [a[i],a[i+1]]=[a[i+1],a[i]]; } const c=a.join(""); if(V.has(c)) return c; } return ""; }
-function fixWord(w){ const V=impVocab(); const b=stripT(w); if(!/[لريت]/.test(b)||V.has(b)) return b;
+function fixWord(w){ const V=impVocab(); const b=stripT(w); if(!/[لريتو]/.test(b)||V.has(b)) return b;
   const pos=[]; for(let i=0;i<b.length-1;i++){ if((b[i+1]==="ل"&&/[اأإآمجحخى]/.test(b[i]))||(b[i]==="ر"&&b[i+1]==="ي")||(b[i]==="ى"&&b[i+1]==="ل")) pos.push(i); }
   if(pos.length&&pos.length<=8){ for(let m=1;m<(1<<pos.length);m++){ const a=b.split(""); for(let k=0;k<pos.length;k++) if(m&(1<<k)){ const i=pos[k]; [a[i],a[i+1]]=[a[i+1],a[i]]; } const c=a.join(""); if(V.has(c)) return c; } }
   if(b.includes("تر")){ for(const r of ["ير","بر","ئر"]){ const c=b.replace(/تر/g,r); if(V.has(c)) return c; const c2=fixWord2(c,V); if(c2) return c2; } }
   if(/ري(?!$)/.test(b)){ const c=b.replace(/ري/g,"ير"); if(V.has(c)) return c; }
+  if(/و$/.test(b)){ const c=b.slice(0,-1)+"ل"; if(V.has(c)) return c; }
   let s=b.replace(/ا([أإآ])ل/g,"ال$1"); s=s.replace(/^([وبف]?)امل(?=..)/,"$1الم"); return s; }
 function fixText(s){ let t=String(s||"").replace(/\s+([يرنى])(?=[\s.,،؛:)]|$)/g,"$1").replace(/(^|\s)([رن])\s+(?=[ء-ي])/g,"$1$2");
   const V=impVocab(); { const tk=t.split(" "); const out=[]; for(let k=0;k<tk.length;k++){ const a=tk[k], c=tk[k+1]; const ar=x=>x&&/^[\u0621-\u064A\u064B-\u0652\u0640]{2,}$/.test(x); if(ar(a)&&ar(c)&&!(V.has(stripT(a))&&V.has(stripT(c)))){ const j=fixWord(a+c); if(V.has(j)){ out.push(j); k++; continue; } } out.push(a); } t=out.join(" "); }
@@ -2586,34 +2590,40 @@ function pdfMergeSplit(pg){ const zs=pg.items.filter(i=>!i.rot&&i.w<1.2&&/^[\u06
     let p=pos; while(p<s.length&&/[\u0621-\u064A]/.test(s[p])&&p>0&&/[\u0621-\u064A]/.test(s[p-1])) p++;
     host.s=s.slice(0,p)+z.s.trim()+s.slice(p); z.drop=true; });
   pg.items=pg.items.filter(i=>!i.drop); }
-async function pdfPages(buf){ const L=await loadPdfJs(); const doc=await L.getDocument({data:new Uint8Array(buf)}).promise; const pages=[];
+async function pdfPages(buf){ const L=await loadPdfJs(); const doc=await L.getDocument({data:new Uint8Array(buf.slice(0))}).promise; const pages=[];
   for(let p=1;p<=doc.numPages;p++){ const pg=await doc.getPage(p); const tc=await pg.getTextContent(); const vp=pg.getViewport({scale:1});
     pages.push({n:p,w:vp.width,items:tc.items.filter(it=>it.str&&it.str.trim()).map(it=>{ const t=it.transform; const rot=Math.abs(t[1])>0.3||Math.abs(t[2])>0.3; return {x:t[4],y:t[5],w:it.width,fs:Math.hypot(t[2],t[3])||Math.hypot(t[0],t[1])||8,rot,s:it.str}; })}); pdfMergeSplit(pages[pages.length-1]); }
   try{ doc.destroy(); }catch(_){} return pages; }
 function lineItems(items,y,tol=4){ return items.filter(i=>!i.rot&&Math.abs(i.y-y)<=tol).sort((a,b)=>(b.x+b.w)-(a.x+a.w)); }
-const PDF_LABELS=["الوظيفة","صفة الزائر","القسم","الموضوع","المدرسة","اليوم و","اليوم","التاريخ","المادة","موضوع الدرس","الصف","المعلم","الحصة","نوع المتابعة","نوع الزيارة","الزائر","الاسم","ملاحظات"].map(nkl);
+const PDF_LABELS=["القائم","بالحضور","القائم بالحضور","الموجه","الوظيفة","صفة الزائر","القسم","الموضوع","المدرسة","اليوم و","اليوم","التاريخ","المادة","موضوع الدرس","الصف","المعلم","الحصة","نوع المتابعة","نوع الزيارة","الزائر","الاسم","ملاحظات"].map(nkl);
 function pdfCell(pg,label,maxY=1e9){ const lk=nkl(label); const lab=pg.items.filter(i=>!i.rot&&i.y<maxY&&nkl(i.s)===lk).sort((a,b)=>b.y-a.y)[0]; if(!lab) return "";
-  const ln=lineItems(pg.items,lab.y).filter(i=>i.x+i.w<=lab.x+1); const out=[];
+  let ln=lineItems(pg.items,lab.y).filter(i=>i.x+i.w<=lab.x+1&&i!==lab); if(!ln.length||ln.every(i=>PDF_LABELS.includes(nkl(i.s)))) ln=lineItems(pg.items,lab.y,12).filter(i=>i.x+i.w<=lab.x+1&&i!==lab); const out=[];
   for(const it of ln){ const k=nkl(it.s); if(PDF_LABELS.includes(k)&&it!==lab) break; if(/^[\/:ةا]$/.test(it.s.trim())&&!out.length) continue; out.push(it.s); }
   return out.join(" ").replace(/\s*-\s*/g,"-").replace(/\s+/g," ").trim(); }
+async function pdfImages(buf,maxPages=3){ const L=await loadPdfJs(); const doc=await L.getDocument({data:new Uint8Array(buf.slice(0))}).promise; const out=[];
+  for(let p=1;p<=Math.min(doc.numPages,maxPages);p++){ const pg=await doc.getPage(p); const vp=pg.getViewport({scale:1}); const sc=Math.min(2,1500/Math.max(vp.width,vp.height)); const v2=pg.getViewport({scale:sc}); const cv=document.createElement("canvas"); cv.width=Math.round(v2.width); cv.height=Math.round(v2.height); const g=cv.getContext("2d"); g.fillStyle="#fff"; g.fillRect(0,0,cv.width,cv.height); await pg.render({canvasContext:g,viewport:v2}).promise; out.push(cv.toDataURL("image/jpeg",0.82)); }
+  try{ doc.destroy(); }catch(_){} return out; }
 async function impFromPdf(buf,file,path){ const pages=await pdfPages(buf); if(!pages.length) throw new Error("ملف فارغ");
+  if(pages.reduce((a,p)=>a+p.items.length,0)<15){ // استمارة ممسوحة ضوئيًا (صورة بلا نص)
+    const images=await pdfImages(buf); const h=roleFromText(path||file);
+    return [{rid:uid(),src:"pdf",scan:true,images,file,path:path||file,teacherName:"",deptName:"",date:impDate(file)||"",period:"",section:"",topic:"",mode:MODES[0],note:"",vrText:h?ROLES[h]:"",vName:"",ratings:{},strengths:"",devs:"",general:"",oldScore:null,warn:["ملف ممسوح ضوئيًا (صورة): أدخل البيانات والتقديرات من صورة الاستمارة"]}]; }
   const p1=pages[0]; const all=pages.flatMap(p=>p.items.map(i=>Object.assign({pg:p.n},i)));
   const evalHead=p1.items.find(i=>nkl(i.s).includes(nkl("محاور تقييم"))||nkl(i.s).includes("حاورتقييم")); const maxY=1e9; const minY=evalHead?evalHead.y:0;
   const hdr=p1.items.filter(i=>i.y>minY); const pg={items:hdr};
   const txt=hdr.map(i=>i.s).join(" ");
-  if(!all.some(i=>/^(P|✓|ü|1)$/.test(i.s.trim()))&&!nkl(txt).includes(nkl("استمارة"))) throw new Error("لا يبدو أنه استمارة زيارة صفية (لا توجد علامات تقدير)");
+  if(!all.some(i=>/^(P|✓|ü|1|[\uF000-\uF0FF])$/.test(i.s.trim()))&&!nkl(txt).includes(nkl("استمارة"))) throw new Error("لا يبدو أنه استمارة زيارة صفية (لا توجد علامات تقدير)");
   const warn=[]; let date=""; for(const c of [pdfCell(pg,"التاريخ"),pdfCell(pg,"اليوم و"),pdfCell(pg,"اليوم والتاريخ"),txt,all.filter(i=>i.pg===1).map(i=>i.s).join(" "),file]){ date=impDate(c); if(date) break; } if(!date) warn.push("تاريخ غير مقروء – أدخله يدويًا");
   const rec={rid:uid(),src:"pdf",file,path:path||file,teacherName:fixText(pdfCell(pg,"المعلم")),deptName:fixText(pdfCell(pg,"المادة")||pdfCell(pg,"القسم")),date,
     period:(()=>{ const c=fixText(pdfCell(pg,"الحصة")); if(c) return periodFromText(c); const it=hdr.find(i=>PERIODS.some(p=>nkl(p)===nkl(i.s))); return it?periodFromText(it.s):""; })(),section:(fixText(pdfCell(pg,"الصف"))||"").replace(/\s*-\s*/g,"-").replace(/^([^\d\s]+)\s+(\d+)$/,"$1-$2"),topic:fixText(pdfCell(pg,"موضوع الدرس")||pdfCell(pg,"الموضوع")),
     mode:modeFromText(fixText(pdfCell(pg,"نوع المتابعة")||pdfCell(pg,"نوع الزيارة"))),note:fixText(pdfCell(pg,"ملاحظات")),
-    vrText:(()=>{ const v=fixText(pdfCell(pg,"الزائر")), j=fixText(pdfCell(pg,"الوظيفة")||pdfCell(pg,"صفة الزائر")); return j?(j+" "+v).trim():v; })(),vName:fixText(pdfCell(pg,"الاسم")),ratings:{},strengths:"",devs:"",oldScore:null,warn};
+    vrText:(()=>{ const v=fixText(pdfCell(pg,"الزائر")||pdfCell(pg,"القائم بالحضور")||pdfCell(pg,"القائم")||pdfCell(pg,"بالحضور")), j=fixText(pdfCell(pg,"الوظيفة")||pdfCell(pg,"صفة الزائر")); return j?(j+" "+v).trim():v; })(),vName:fixText(pdfCell(pg,"الاسم")),ratings:{},strengths:"",devs:"",oldScore:null,warn};
   // أعمدة المستويات من عناوينها المائلة
   const COLK=[["مستكم"],["معظم"],["بعض"],["محدود","حمدود","غيرمتوفر","غريمتوفر"],["قياس"]]; let lastCols=null; const marks=[];
   pages.forEach(p=>{ let cols=COLK.map(keys=>{ const it=p.items.filter(i=>i.rot&&keys.some(k=>nkl(i.s).includes(k))); if(!it.length) return null; const xs=it.map(i=>i.x-i.fs/2).sort((a,b)=>a-b); return xs[Math.floor(xs.length/2)]; });
     if(cols.filter(c=>c==null).length===1){ const k=cols.indexOf(null); const st=(cols[k===0?1:0]-cols[k===0?2:1]); cols[k]=k===0?cols[1]+st:cols[k-1]-st; }
     if(cols.some(c=>c==null)) cols=lastCols; if(!cols) return; lastCols=cols;
     const lo=Math.min(...cols)-12, hi=Math.max(...cols)+12;
-    p.items.filter(i=>!i.rot&&/^(P|✓|✔|√|ü|þ|1|x|X|×)$/.test(i.s.trim())&&i.y<Math.min(...p.items.filter(h=>h.rot&&COLK.some(ks=>ks.some(k=>nkl(h.s).includes(k)))).map(h=>h.y),1e9)).forEach(i=>{ const cx=i.x+i.w/2; if(cx<lo||cx>hi) return; let best=0,bd=1e9; cols.forEach((c,k)=>{ const d=Math.abs(cx-c); if(d<bd){bd=d;best=k;} }); marks.push({pg:p.n,y:i.y,x:cx,k:best+1,cols}); }); });
+    p.items.filter(i=>!i.rot&&/^(P|✓|✔|√|ü|þ|1|x|X|×|[\uF000-\uF0FF])$/.test(i.s.trim())&&i.y<Math.min(...p.items.filter(h=>h.rot&&COLK.some(ks=>ks.some(k=>nkl(h.s).includes(k)))).map(h=>h.y),1e9)).forEach(i=>{ const cx=i.x+i.w/2; if(cx<lo||cx>hi) return; let best=0,bd=1e9; cols.forEach((c,k)=>{ const d=Math.abs(cx-c); if(d<bd){bd=d;best=k;} }); marks.push({pg:p.n,y:i.y,x:cx,k:best+1,cols}); }); });
   marks.sort((a,b)=>a.pg-b.pg||b.y-a.y);
   if(!marks.length){ // نموذج يكتب المستوى نصًا في عمود «تقييم معايير الأداء»
     pages.forEach(p=>{ const head=p.items.filter(i=>nkl(i.s).includes(nkl("معايير الأداء"))||nkl(i.s).includes("معايرياآداء")||nkl(i.s).includes("معايرياداء")).sort((a,b)=>b.y-a.y)[0]; const topY=head?head.y-3:1e9;
@@ -2645,7 +2655,7 @@ async function impFromPdf(buf,file,path){ const pages=await pdfPages(buf); if(!p
   const yG=!yS&&findY(["ملاحظات وتوصيات عامة","ملاحظات وتوصيات عامّة"]); if(yG){ const p=pages[yG.pg-1]; const stop=p.items.filter(i=>!i.rot&&i.y<yG.y-4&&nkl(i.s).includes("توقيع")).sort((a,b)=>b.y-a.y)[0]; const lo=stop?stop.y+3:-1;
     const its=p.items.filter(i=>!i.rot&&i.y<yG.y-3&&i.y>lo); const lines={}; its.forEach(it=>{ const key=Math.round(it.y/3); (lines[key]=lines[key]||[]).push(it); });
     rec.general=fixText(Object.keys(lines).sort((a,b)=>b-a).map(k=>lines[k].sort((a,b)=>(b.x+b.w)-(a.x+a.w)).map(x=>x.s).join(" ")).join(" ")); }
-  if(!rec.vName&&rec.vrText){ const nm=rec.vrText.replace(/(النائب|نائب)\s*(المدير)?\s*(الأكاديمي|الاكاديمي|للشؤون الأكاديمية)?|مدير\s*المدرسة|المدير|منسق\s*(القسم|المادة)?|الموجه\s*التربوي|الموجه|موجه|زميل/g,"").replace(/[\/:–-]+/g," ").replace(/\s+/g," ").trim(); if(nm.split(" ").length>=2) rec.vName=nm; }
+  if(!rec.vName&&rec.vrText){ const nm=rec.vrText.replace(/(النائب|نائب)\s*(المدير)?\s*(الأكاديمي|الاكاديمي|للشؤون الأكاديمية)?|مدير\s*المدرسة|المدير|منسق\s*(القسم|المادة)?|الموجه\s*التربوي|الموجه|موجه|زميل/g,"").replace(/(برفقة|بمرافقة|مع)\s*.*$/,"").replace(/[\/:–-]+/g," ").replace(/\s+/g," ").trim(); if(nm.split(" ").length>=2) rec.vName=nm; }
   if(!rec.vrText){ const h=roleFromText(path||file); if(h) rec.vrText=ROLES[h]; }
   return [rec]; }
 
@@ -2711,7 +2721,7 @@ function wordRecord(g,file,path){ const T2=g.tables; const rows=T2.flat(); const
     period:periodFromText(val(["الحصة"])),section:val(["الصف","الصف / الشعبة","الشعبة"]).replace(/\s*-\s*/g,"-").replace(/^([^\d\s/]+)\s+(\d+)$/,"$1-$2"),topic:val(["موضوع الدرس","الموضوع","عنوان الدرس"]),
     mode:modeFromText(val(["نوع المتابعة","نوع الزيارة"])),note:val(["ملاحظات","الغرض"]),vrText:(job?job+" ":"")+vr,vName:val(["الاسم","اسم الزائر"]),ratings:{},strengths:"",devs:"",general:"",oldScore:null,warn};
   if(!rec.vName&&vr&&!roleFromText(vr)) rec.vName=vr;
-  if(!rec.vName&&rec.vrText){ const nm=rec.vrText.replace(/(النائب|نائب)\s*(المدير)?\s*(الأكاديمي|الاكاديمي|للشؤون الأكاديمية)?|مدير\s*المدرسة|المدير|منسق\s*(القسم|المادة)?|الموجه\s*التربوي|الموجه|موجه|زميل/g,"").replace(/[\/:–-]+/g," ").replace(/\s+/g," ").trim(); if(nm.split(" ").length>=2) rec.vName=nm; }
+  if(!rec.vName&&rec.vrText){ const nm=rec.vrText.replace(/(النائب|نائب)\s*(المدير)?\s*(الأكاديمي|الاكاديمي|للشؤون الأكاديمية)?|مدير\s*المدرسة|المدير|منسق\s*(القسم|المادة)?|الموجه\s*التربوي|الموجه|موجه|زميل/g,"").replace(/(برفقة|بمرافقة|مع)\s*.*$/,"").replace(/[\/:–-]+/g," ").replace(/\s+/g," ").trim(); if(nm.split(" ").length>=2) rec.vName=nm; }
   if(!roleFromText(rec.vrText)){ const h=roleFromText(path||file); if(h) rec.vrText=ROLES[h]+" "+rec.vrText; }
   // المستويات
   const COLK=[["مستكم"],["معظم"],["بعض"],["محدود","غيرمتوفر","غريمتوفر"],["قياس"]];
@@ -2786,6 +2796,7 @@ function impRows(){ // يبني صفوف المراجعة من الملفات ا
   const terms=S.cfg.terms||[]; const yFrom=terms.length?terms.map(t=>t.from).sort()[0]:"", yTo=terms.length?terms.map(t=>t.to).sort().slice(-1)[0]:"";
   out.forEach(r=>{ const e=IMV.edits[r.rid]||{}; const iss=[];
     if(r.dup) iss.push("مكررة (الزيارة نفسها في ملف آخر)");
+    if(r.scan&&!Object.keys(r.ratings).length) iss.push("ممسوحة ضوئيًا: أدخل التقديرات من الصورة");
     if(!r.teacherId) iss.push(r.cands.length>1?"اسم المعلم يطابق أكثر من معلم":"المعلم غير موجود في كادر العام");
     if(!r.date) iss.push("التاريخ غير مقروء"); else if(yFrom&&(r.date<yFrom||r.date>yTo)) iss.push(`خارج العام ${S.year}`); else if(r.date>today()) iss.push("التاريخ لاحق لليوم – راجعه");
     if(!r.vRole) iss.push("حدّد صفة الزائر"); else if(!r.vName&&r.vRole!=="peer") iss.push("أدخل اسم الزائر");
@@ -2876,13 +2887,13 @@ function importView(){
    <div class="tbl-wrap" style="margin-top:10px"><table class="imp-tbl"><thead><tr><th class="c"><input type="checkbox" id="imp-all" aria-label="تحديد الكل" ${shown.length&&shown.every(r=>r.inc)?"checked":""}></th><th>المعلم</th><th>الزيارة</th><th>الزائر</th><th class="c">المؤشرات</th><th class="c">النسبة</th><th>الحالة</th><th></th></tr></thead><tbody>
    ${shown.map(r=>{ const t=T(r.teacherId); return `<tr class="${r.ok?"":"imp-warn"}">
      <td class="c"><input type="checkbox" data-iinc="${r.rid}" ${r.inc?"checked":""} ${r.dup?"disabled":""}></td>
-     <td>${t?`<b>${esc(t.name)}</b><div class="muted small">${esc(t.dept)}</div>`:`<select data-it="${r.rid}" style="min-width:180px">${tOpts("")}</select>`}${t&&nk(t.name)!==nk(r.teacherName)?`<div class="muted small">في الملف: ${esc(r.teacherName)}</div>`:""}${!t?`<div class="muted small">في الملف: ${esc(r.teacherName||"—")}</div>`:""}</td>
+     <td>${t?`<b>${esc(t.name)}</b><div class="muted small">${esc(t.dept)}</div>`:`<select data-it="${r.rid}" style="min-width:180px">${tOpts("")}</select>`}${t&&r.teacherName&&nk(t.name)!==nk(r.teacherName)?`<div class="muted small">في الملف: ${esc(r.teacherName)}</div>`:""}${!t?`<div class="muted small">في الملف: ${esc(r.teacherName||"—")}</div>`:""}</td>
      <td class="num">${r.date&&!(IMV.edits[r.rid]||{}).date?fmtD(r.date):`<input type="date" data-idate="${r.rid}" value="${esc(r.date||"")}" style="max-width:150px${r.date?"":";border-color:var(--l4)"}">`}<div class="muted small">${r.period?esc(r.period):`<select data-iper="${r.rid}" style="max-width:150px;margin-top:3px"><option value="">— الحصة —</option>${PERIODS.map(p=>`<option>${p}</option>`).join("")}</select>`}${r.section?" · "+esc(r.section):""}</div><div style="margin-top:3px">${srcChip(r)}</div></td>
      <td><select data-ir="${r.rid}">${rOpts(r.vRole)}</select><input data-in="${r.rid}" list="imp-vl" value="${esc(r.vName||"")}" placeholder="اسم الزائر" style="margin-top:4px"></td>
      <td class="c num">${r.n}/${IND.length}</td>
      <td class="c"><span class="lv ${lvColor(r.score)} num">${fix1(r.score)}</span>${r.oldScore!=null?`<div class="muted small num">السابق ${fix1(r.oldScore)}</div>`:""}</td>
      <td class="small">${r.ok?`<span class="chip st st-sent">جاهزة</span>`:r.issues.map(x=>`<div style="color:${/مسبق|مكرر/.test(x)?"var(--ink-2)":"var(--l4)"}">• ${esc(x)}</div>`).join("")}${(()=>{ const w=(r.warn||[]).filter(x=>!(r.date&&/تاريخ/.test(x))); return w.length?`<div class="muted">${w.map(esc).join("<br>")}</div>`:""; })()}</td>
-     <td><button class="btn sm" data-iprev="${r.rid}">معاينة</button></td></tr>`; }).join("")}
+     <td>${r.scan?`<button class="btn sm ${Object.keys(r.ratings).length?"":"pri"}" data-iscan="${r.rid}">${Object.keys(r.ratings).length?"تعديل الإدخال":"إدخال من الصورة"}</button>`:`<button class="btn sm" data-iprev="${r.rid}">معاينة</button>`}</td></tr>`; }).join("")}
    </tbody></table></div>
    <div class="fields" style="margin-top:14px"><label class="f">حالة الزيارات بعد الإدراج<select id="imp-st"><option value="sent" ${IMV.opt.status==="sent"?"selected":""}>أُرسلت للمعلم (مناسب للزيارات السابقة)</option><option value="closed" ${IMV.opt.status==="closed"?"selected":""}>معتمدة ولم تُرسل</option></select></label>
      <label class="row small" style="align-self:end"><input type="checkbox" id="imp-ack" ${IMV.opt.ack?"checked":""} style="width:auto"> اعتبر المعلم مطّلعًا عليها</label>
@@ -2893,6 +2904,27 @@ function importView(){
    ${bt.map(b=>`<tr><td class="num">${fmtD((b.at||"").slice(0,10))}</td><td>${esc(b.by||"")}</td><td class="c num">${b.n}</td><td class="small">${Object.entries(b.roles).map(([k,n])=>`${esc(ROLES[k]||k)}: ${n}`).join(" · ")}</td><td>${can("visit.delete")||S.user.role==="admin"||b.by===S.user.name?`<button class="btn sm danger" data-iundo="${b.id}">حذف الدفعة</button>`:""}</td></tr>`).join("")}</tbody></table></div></div>`:""}
   <div class="note" style="margin-top:14px"><b>كيف يعمل الاستيراد؟</b> يقرأ ورقة «السجل» من ملف الإكسل (المؤشرات الـ23 بمستوياتها، والتوصيات، ونقاط القوة والتطوير)، ويقرأ استمارات PDF وملفات Word (‎.docx، وملفات ‎.doc المصدّرة من هذا النظام) بنماذجها المختلفة: المعلم، الزائر وصفته، المؤشرات الـ23 بمستوياتها (علامة ✓ أو نص المستوى)، التوصيات، ونقاط القوة والتطوير. إذا وُجدت الزيارة نفسها في الملفين تُدمج تلقائيًا ويُؤخذ الزائر من الـPDF. تُضاف زيارة النائب الأكاديمي إلى زيارات النائب، وزيارة المدير إلى زيارات المدير، وزيارة المنسق إلى سجل المنسق، وزيارة الموجه التربوي ضمن زيارات الموجه — وتُرقّم تلقائيًا لكل زائر. سجل الإكسل لا يحتوي اسم الزائر، فإن لم يتوفر PDF مطابق حدّده من شريط «تحديد الزائر». ويمكن تسمية المجلدات باسم الزائر (مثل «النائب الأكاديمي») ليتعرّف عليه النظام تلقائيًا.</div>`;
 }
+function impScanDialog(rid){ const raw=IMV.raw.find(x=>x.rid===rid); if(!raw) return; const row=impRows().find(x=>x.rid===rid)||raw; const R=JSON.parse(JSON.stringify(raw.ratings||{}));
+  const tOpts=sel=>`<option value="">— اختر المعلم —</option>`+S.cfg.depts.map(d=>`<optgroup label="${esc(d.name)}">${d.teachers.map(t=>`<option value="${t.id}" ${sel===t.id?"selected":""}>${esc(t.name)}</option>`).join("")}</optgroup>`).join("");
+  const seg=i=>`<div class="seg" role="group">${[1,2,3,4,0].map(k=>`<button type="button" class="b${k} sc-lv" data-i="${i}" data-l="${k}" aria-pressed="${R[i]&&R[i].l===k}">${k||"—"}</button>`).join("")}</div>`;
+  let dom=-1; const rowsH=IND.map(x=>{ const h=x.d!==dom?`<div class="sc-dom">${esc(DOMAINS[x.d])}</div>`:""; dom=x.d; return h+`<div class="sc-ind"><div class="sc-t"><b class="num">${x.i+1}</b> ${esc(x.t)}</div>${seg(x.i)}<input class="sc-rec" data-i="${x.i}" placeholder="التوصية كما في الاستمارة (اختياري)" value="${esc((R[x.i]||{}).rec||"")}"></div>`; }).join("");
+  const bg=modal(`إدخال زيارة من صورة: ${raw.file}`,`<div class="sc-wrap"><div class="sc-img">${(raw.images||[]).map((u,k)=>`<img src="${u}" alt="صفحة ${k+1}">`).join("")||'<p class="muted">لا تتوفر صورة.</p>'}<p class="small muted">اضغط على الصورة لتكبيرها.</p></div>
+   <div class="sc-form"><div class="fields"><label class="f">المعلم<select id="sc-t">${tOpts(row.teacherId||"")}</select></label><label class="f">التاريخ<input type="date" id="sc-d" value="${esc(row.date||"")}"></label>
+    <label class="f">الحصة<select id="sc-p"><option value="">—</option>${PERIODS.map(p=>`<option ${row.period===p?"selected":""}>${p}</option>`).join("")}</select></label><label class="f">الصف / الشعبة<input id="sc-s" value="${esc(row.section||"")}"></label>
+    <label class="f">صفة الزائر<select id="sc-r"><option value="">—</option>${["principal","deputy","coord","sup","peer"].map(k=>`<option value="${k}" ${row.vRole===k?"selected":""}>${ROLES[k]}</option>`).join("")}</select></label><label class="f">اسم الزائر<input id="sc-n" list="imp-vl" value="${esc(row.vName||"")}"></label>
+    <label class="f" style="grid-column:1/-1">موضوع الدرس<input id="sc-tp" value="${esc(raw.topic||"")}"></label></div>
+    <div class="row small" style="margin:10px 0 4px;justify-content:space-between"><b>مستويات المؤشرات (1 مستكملة · 2 معظمها · 3 بعضها · 4 غير متوفرة · — لم يُقس)</b><span class="muted" id="sc-cnt"></span></div>${rowsH}
+    <label class="f" style="margin-top:10px">نقاط القوة<textarea id="sc-str">${esc(raw.strengths||"")}</textarea></label><label class="f">النقاط التي تحتاج إلى تطوير<textarea id="sc-dev">${esc(raw.devs||"")}</textarea></label><label class="f">ملاحظات عامة<textarea id="sc-gen">${esc(raw.general||"")}</textarea></label></div></div>`,
+   [{t:"حفظ الإدخال",cls:"pri",fn:bg=>{ const n=Object.keys(R).length; if(!n){ toast("حدّد مستوى مؤشر واحد على الأقل"); return false; }
+      $$(".sc-rec",bg).forEach(e=>{ const i=e.dataset.i; if(R[i]) R[i].rec=e.value.trim(); });
+      raw.ratings=R; raw.topic=$("#sc-tp",bg).value.trim(); raw.strengths=numberLines($("#sc-str",bg).value.split("\n")); raw.devs=numberLines($("#sc-dev",bg).value.split("\n")); raw.general=$("#sc-gen",bg).value.trim();
+      raw.date=$("#sc-d",bg).value||raw.date; raw.period=$("#sc-p",bg).value; raw.section=$("#sc-s",bg).value.trim();
+      impEdit(rid,{teacherId:$("#sc-t",bg).value,vRole:$("#sc-r",bg).value,vName:$("#sc-n",bg).value.trim(),date:raw.date||undefined,period:raw.period}); if(IMV.edits[rid]) delete IMV.edits[rid].inc;
+      raw.warn=(raw.warn||[]).filter(w=>!/ممسوح/.test(w)).concat(n<IND.length?[`أُدخل ${n} مؤشرًا من ${IND.length}`]:[]); toast("حُفظ إدخال الزيارة"); render(); }}]);
+  const m=bg.querySelector(".modal"); m.style.maxWidth="1240px"; m.style.width="96vw";
+  const cnt=()=>{ $("#sc-cnt",bg).textContent=`${Object.keys(R).length} من ${IND.length}`; }; cnt();
+  $$(".sc-lv",bg).forEach(x=>x.onclick=()=>{ const i=x.dataset.i, l=+x.dataset.l; if(R[i]&&R[i].l===l) delete R[i]; else R[i]=Object.assign(R[i]||{rec:""},{l}); $$(`.sc-lv[data-i="${i}"]`,bg).forEach(y=>y.setAttribute("aria-pressed",String(!!R[i]&&R[i].l===+y.dataset.l))); cnt(); });
+  $$(".sc-img img",bg).forEach(im=>im.onclick=()=>im.classList.toggle("zoom")); }
 function impEdit(rid,patch){ IMV.edits[rid]=Object.assign(IMV.edits[rid]||{},patch); }
 function bindImport(){
   const pick=inp=>{ if(!inp) return; inp.onchange=e=>{ const fs=[...e.target.files]; e.target.value=""; impHandleFiles(fs); }; };
@@ -2926,6 +2958,7 @@ function bindImport(){
   const pd=$("#imp-pd"); if(pd) pd.onchange=()=>{ IMV.opt.pd=pd.checked; };
   const goBtn=$("#imp-go"); if(goBtn) goBtn.onclick=()=>{ const n=impRows().filter(r=>r.inc).length; confirmBox(`سيتم إدراج ${n} زيارة في العام ${S.year}، كلٌّ في سجل زائرها. متابعة؟`,impCommit,"إدراج"); };
   $$("[data-iundo]").forEach(b=>b.onclick=()=>{ const x=impBatches().find(y=>y.id===b.dataset.iundo); confirmBox(`حذف ${x?x.n:""} زيارة مستوردة في هذه الدفعة وما ارتبط بها من إجراءات تطوير؟`,()=>impUndo(b.dataset.iundo),"حذف"); });
+  $$("[data-iscan]").forEach(b=>b.onclick=()=>impScanDialog(b.dataset.iscan));
   $$("[data-iprev]").forEach(b=>b.onclick=()=>{ const r=impRows().find(y=>y.rid===b.dataset.iprev); if(!r) return; const t=T(r.teacherId)||{}; const lvTxt=["لم يتم قياسه","الأدلة مستكملة وفاعلة","تتوفر معظم الأدلة","تتوفر بعض الأدلة","الأدلة محدودة أو غير متوفرة"];
     modal(`معاينة: ${t.name||r.teacherName} – ${r.date?fmtD(r.date):""}`,`<p class="small muted">${esc(r.files.join("، "))}${r.topic?" · الدرس: "+esc(r.topic):""}${r.section?" · "+esc(r.section):""} · ${esc(r.period||"")} · ${esc(ROLES[r.vRole]||"زائر غير محدد")}: ${esc(r.vName||"—")}</p>
      <div class="tbl-wrap"><table><thead><tr><th>#</th><th>المؤشر</th><th>المستوى</th><th>التوصية</th></tr></thead><tbody>${IND.map(x=>{ const q=r.ratings[x.i]; return `<tr><td class="num">${x.i+1}</td><td class="small">${esc(x.t)}</td><td>${q?`<span class="lv lv${q.l}">${esc(lvTxt[q.l])}</span>`:`<span class="muted small">—</span>`}</td><td class="small">${esc(q&&q.rec||"")}</td></tr>`; }).join("")}</tbody></table></div>
