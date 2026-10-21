@@ -2768,10 +2768,11 @@ function impTeacher(name,dept){ const ts=allTeachers(); if(!nk(name)) return {id
 function impKnownVisitors(role){ const c=[]; if(!role||role==="principal") c.push(S.cfg.principal.name); if(!role||role==="deputy") S.cfg.deputies.forEach(d=>c.push(d.name));
   if(!role||role==="coord") S.cfg.depts.forEach(d=>{ const x=coordOf(d); if(x) c.push(x.name); });
   users().forEach(u=>{ if((!role||u.role===role)&&u.role!=="teacher") c.push(u.name); });
+  if(!role||role==="sup") S.cfg.depts.forEach(d=>{ if(d.supervisor&&d.supervisor.name) c.push(d.supervisor.name); });
   if(!role||role==="sup") VIS().forEach(v=>{ if(v.visitorRole==="sup"&&v.visitorName) c.push(v.visitorName); });
   return [...new Set(c.filter(Boolean))]; }
 function impVisitorName(role,name,teacherId){ const n=String(name||"").replace(/\s+/g," ").trim();
-  if(!n){ if(role==="principal") return S.cfg.principal.name||""; if(role==="deputy"&&S.cfg.deputies.length===1) return S.cfg.deputies[0].name; if(role==="coord"&&teacherId){ const t=T(teacherId); const c=t&&coordOf(D(t.deptId)); if(c) return c.name; } return ""; }
+  if(!n){ if(role==="principal") return S.cfg.principal.name||""; if(role==="deputy"&&S.cfg.deputies.length===1) return S.cfg.deputies[0].name; if(role==="coord"&&teacherId){ const t=T(teacherId); const c=t&&coordOf(D(t.deptId)); if(c) return c.name; } if(role==="sup"&&teacherId){ const t=T(teacherId); const d=t&&D(t.deptId); if(d&&d.supervisor&&d.supervisor.name) return d.supervisor.name; } return ""; }
   const kn=impKnownVisitors(role); const m=kn.find(c=>nameMatch(c,n)||nkl(c)===nkl(n)); if(m) return m;
   const sc=kn.map(c=>({c,s:nameSim(c,n)})).sort((a,b)=>b.s-a.s); if(sc[0]&&sc[0].s>=0.7&&(!sc[1]||sc[0].s-sc[1].s>=0.08)) return sc[0].c; return n; }
 const secKey = s=>{ const t=normAr(s||""); const g={"سابع":7,"ثامن":8,"تاسع":9,"عاشر":10}; let gr=""; for(const k in g) if(t.includes(k)) gr=g[k]; const n=(t.match(/\d+/g)||[]); return gr?gr+"-"+(n[0]||""):n.join("-"); };
