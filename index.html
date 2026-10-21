@@ -1210,9 +1210,9 @@ function docHead(big){ const src=bannerSrc(); const h=big?84:62; if(!src) return
   return `<div class="doc-head" style="text-align:center;padding:2px 0 6px;border-bottom:3px solid ${OFF.gold};margin-bottom:8px"><img src="${src}" height="${h}" width="${Math.round(h*6.39)}" alt="${esc(S.cfg.school)}" style="height:${h}px;width:auto;max-width:100%"></div>`; }
 // الزيارات القديمة: إخفاء ما أضافه النظام تلقائيًا (عبارة القوة/الملاحظة الافتراضية، وقائمة نقاط القوة المجمّعة آليًا)
 function isAutoRec(v,i,r){ if(v.sv===2||v.imp||!r||!r.rec) return false; const x=IND[i]; const t=recNorm(r.rec); return (r.l===1&&t===recNorm(x.s))||(r.l===2&&[x.r2,x.m].some(a=>a&&recNorm(a)===t)); }
-function shownGeneral(v){ const g=String(v.general||""); return (v.sv!==2&&!v.imp&&BANK.gen&&recNorm(g)===recNorm(BANK.gen))?"":g; }
+function shownGeneral(v){ let g=String(v.general||""); if(v.imp) g=g.replace(/^ملاحظات الزيارة:\s*(?=.{40,})/,""); return (v.sv!==2&&!v.imp&&BANK.gen&&recNorm(g)===recNorm(BANK.gen))?"":g; }
 function shownRec(v,i){ const r=(v.ratings||{})[i]; if(!r||!r.rec) return ""; return isAutoRec(v,i,r)?"":r.rec; }
-function shownStrengths(v){ const s=String(v.strengths||""); if(v.sv===2||v.imp||!s.trim()) return s; const R=v.ratings||{};
+function shownStrengths(v){ const s=String(v.strengths||""); if(v.sv===2||!s.trim()) return s; const R=v.ratings||{};
   const auto=new Set(IND.filter(x=>(R[x.i]||{}).l===1).flatMap(x=>[x.s,...String(R[x.i].rec||"").split("\n")]).map(recNorm).filter(Boolean));
   const lines=s.split("\n").map(recNorm).filter(Boolean); return lines.length&&lines.every(l=>auto.has(l))?"":s; }
 function formSheet(v){
@@ -2529,7 +2529,7 @@ function fixText(s){ let t=String(s||"").replace(/\s+([يرنى])(?=[\s.,،؛:)]
   return t.replace(/أوص ي/g,"أوصي").replace(/نرس ي/g,"نرسي").replace(/\s+([.،:؛)])/g,"$1").replace(/\(\s+/g,"(").replace(/\s{2,}/g," ").trim(); }
 function cleanRec(s){ s=String(s==null?"":s).replace(/\s+/g," ").trim(); if(!s||/^[\/\s.\-ـ]*$/.test(s)) return ""; s=s.replace(/^[\s\-–ـ•.\/]+/,"").replace(/أوصي\s*بـ?\s*:\s*/,"أوصي بـ: ").trim(); return s; }
 function bulletize(s){ const t=String(s||"").replace(/\s+/g," ").trim(); if(!t) return "";
-  return t.split(/\s*(?:-\s*\/\.?|\/\.?\s*-|\s\/\s|\/)\s*/).map(x=>x.replace(/^[\s\-–•.]+/,"").replace(/[\s\-–]+$/,"").trim()).filter(x=>x.length>2&&!/^جوانب\s*(اخر|أخر)/.test(x)).map(x=>"- "+x).join("\n"); }
+  const arr=t.split(/\s*(?:-\s*\/\.?|\/\.?\s*-|\s\/\s|\/)\s*/).map(x=>x.replace(/^[\s\-–•.]+/,"").replace(/[\s\-–]+$/,"").trim()).filter(x=>x.length>2&&!/^جوانب\s*(اخر|أخر)/.test(x)); return numberLines(arr); }
 function roleFromText(s){ s=String(s||"").split(/برفقة|بمرافقة|بحضور/)[0]; const k=nkl(s); if(!k) return ""; if(k.includes("نائب")||k.includes("ااكاديمي")&&!k.includes("موجه")) return "deputy"; if(k.includes("مدير")) return "principal"; if(k.includes("منسق")||/coordinator/i.test(s)) return "coord"; if(k.includes("موجه")||k.includes("مشرف")||k.includes("خبير")||/supervisor/i.test(s)) return "sup"; if(k.includes("زمي")||k.includes("تباد")) return "peer"; return ""; }
 function modeFromText(s){ const k=nkl(s); if(k.includes("جزئي")) return MODES[1]; if(k.includes("بعد")||k.includes("بث")) return k.includes("غيرمدمج")?MODES[3]:MODES[2]; return MODES[0]; }
 function periodFromText(s){ const k=nkl(s); const i=PERIODS.findIndex(p=>k.includes(nkl(p))); if(i>-1) return PERIODS[i]; const d=String(s||"").match(/\d+/); return d&&PERIODS[+d[0]-1]?PERIODS[+d[0]-1]:String(s||"").trim(); }
@@ -2851,10 +2851,8 @@ function impToVisit(r,batch){ const t=T(r.teacherId); const now=new Date().toISO
   const at=r.date+"T12:00:00.000Z";
   const v={id:uid(),year:S.year,status:IMV.opt.status,date:r.date,period:r.period||"",section:r.section||"",topic:r.topic||"",mode:r.mode||MODES[0],purpose:r.vRole==="peer"?"peer":"eval",
     visitorRole:r.vRole,visitorName:r.vName||"",recordedBy:acct?acct.key:"imp",recordedByName:own?r.vName:"",teacherId:r.teacherId,deptId:t.deptId,ratings,pdr:{},focus:[],
-    strengths:r.strengths||"",devs:r.devs||"",action:"",general:[r.general||"",r.note?("ملاحظات الزيارة: "+r.note):""].filter(Boolean).join("\n"),conf:{date:"",pre:false,notes:""},reflection:"",tot:["","",""],totN:"",follow:{},nextDate:"",
+    strengths:r.strengths||"",devs:r.devs||"",action:"",general:[r.general||"",r.note?(r.note.length>40?r.note:"ملاحظات الزيارة: "+r.note):""].filter(Boolean).join("\n"),sv:2,conf:{date:"",pre:false,notes:""},reflection:"",tot:["","",""],totN:"",follow:{},nextDate:"",
     createdAt:at,closedAt:at,imp:{batch,src:r.srcs.join("+"),file:r.files.join("، ").slice(0,300),oldScore:r.oldScore==null?null:Math.round(r.oldScore*10)/10,at:now,by:S.user.name}};
-  if(!v.strengths) v.strengths=IND.filter(x=>(ratings[x.i]||{}).l===1).map(x=>"- "+x.s.trim()).filter(s=>s.length>3).join("\n");
-  if(!v.devs) v.devs=IND.filter(x=>{ const q=ratings[x.i]||{}; return q.l>=2&&(q.rec||"").trim(); }).map(x=>"- "+ratings[x.i].rec.trim()).join("\n");
   if(IMV.opt.status==="sent") v.sentAt=at; if(IMV.opt.ack){ v.ack=true; v.ackAt=at; }
   v.term=termOf(v.date); v.score=scoreOf(v).avg; return v; }
 async function impCommit(){ const rows=impRows().filter(r=>r.inc); if(!rows.length){ toast("لا توجد زيارات محددة للإدراج"); return; }
