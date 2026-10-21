@@ -2523,7 +2523,7 @@ function fixText(s){ let t=String(s||"").replace(/\s+([يرنى])(?=[\s.,،؛:)]
 function cleanRec(s){ s=String(s==null?"":s).replace(/\s+/g," ").trim(); if(!s||/^[\/\s.\-ـ]*$/.test(s)) return ""; s=s.replace(/^[\s\-–ـ•.\/]+/,"").replace(/أوصي\s*بـ?\s*:\s*/,"أوصي بـ: ").trim(); return s; }
 function bulletize(s){ const t=String(s||"").replace(/\s+/g," ").trim(); if(!t) return "";
   return t.split(/\s*(?:-\s*\/\.?|\/\.?\s*-|\s\/\s|\/)\s*/).map(x=>x.replace(/^[\s\-–•.]+/,"").replace(/[\s\-–]+$/,"").trim()).filter(x=>x.length>2&&!/^جوانب\s*(اخر|أخر)/.test(x)).map(x=>"- "+x).join("\n"); }
-function roleFromText(s){ const k=nkl(s); if(!k) return ""; if(k.includes("نائب")||k.includes("ااكاديمي")&&!k.includes("موجه")) return "deputy"; if(k.includes("مدير")) return "principal"; if(k.includes("منسق")||/coordinator/i.test(s)) return "coord"; if(k.includes("موجه")||k.includes("مشرف")||k.includes("خبير")||/supervisor/i.test(s)) return "sup"; if(k.includes("زمي")||k.includes("تباد")) return "peer"; return ""; }
+function roleFromText(s){ s=String(s||"").split(/برفقة|بمرافقة|بحضور/)[0]; const k=nkl(s); if(!k) return ""; if(k.includes("نائب")||k.includes("ااكاديمي")&&!k.includes("موجه")) return "deputy"; if(k.includes("مدير")) return "principal"; if(k.includes("منسق")||/coordinator/i.test(s)) return "coord"; if(k.includes("موجه")||k.includes("مشرف")||k.includes("خبير")||/supervisor/i.test(s)) return "sup"; if(k.includes("زمي")||k.includes("تباد")) return "peer"; return ""; }
 function modeFromText(s){ const k=nkl(s); if(k.includes("جزئي")) return MODES[1]; if(k.includes("بعد")||k.includes("بث")) return k.includes("غيرمدمج")?MODES[3]:MODES[2]; return MODES[0]; }
 function periodFromText(s){ const k=nkl(s); const i=PERIODS.findIndex(p=>k.includes(nkl(p))); if(i>-1) return PERIODS[i]; const d=String(s||"").match(/\d+/); return d&&PERIODS[+d[0]-1]?PERIODS[+d[0]-1]:String(s||"").trim(); }
 const pad2=n=>String(n).padStart(2,"0");
@@ -2657,7 +2657,7 @@ async function impFromPdf(buf,file,path){ const pages=await pdfPages(buf); if(!p
     rec.general=fixText(Object.keys(lines).sort((a,b)=>b-a).map(k=>lines[k].sort((a,b)=>(b.x+b.w)-(a.x+a.w)).map(x=>x.s).join(" ")).join(" ")); }
   if(!rec.vName&&rec.vrText){ const nm=rec.vrText.replace(/(النائب|نائب)\s*(المدير)?\s*(الأكاديمي|الاكاديمي|للشؤون الأكاديمية)?|مدير\s*المدرسة|المدير|منسق\s*(القسم|المادة)?|الموجه\s*التربوي|الموجه|موجه|زميل/g,"").replace(/(برفقة|بمرافقة|مع)\s*.*$/,"").replace(/[\/:–-]+/g," ").replace(/\s+/g," ").trim(); if(nm.split(" ").length>=2) rec.vName=nm; }
   if(!rec.vrText){ const h=roleFromText(path||file); if(h) rec.vrText=ROLES[h]; }
-  return [rec]; }
+  impFixRecs(rec); return [rec]; }
 
 /* ---- Word: ‎.docx / ‎.doc (المصدّر من النظام أو HTML/MHT) ---- */
 const WNS="http://schemas.openxmlformats.org/wordprocessingml/2006/main";
@@ -2675,17 +2675,18 @@ function docxText(node){ let out="";
       if(ln==="delText"||ln==="instrText") continue;
       walk(c); if(ln==="p") out+="\n"; } };
   walk(node); return wClean(out); }
+function wKids(n,ln){ const out=[]; for(const c of n.childNodes){ if(c.nodeType!==1) continue; if(c.localName===ln) out.push(c); else if(["sdt","sdtContent","customXml","ins","smartTag","moveTo"].includes(c.localName)) out.push(...wKids(c,ln)); } return out; }
 function docxGrid(doc){ const tables=[]; const paras=[];
   const body=[...doc.getElementsByTagNameNS(WNS,"body")][0]; if(!body) return {tables,paras};
   const tbls=[...doc.getElementsByTagNameNS(WNS,"tbl")];
-  tbls.forEach(tb=>{ const rows=[]; [...tb.childNodes].filter(n=>n.localName==="tr").forEach(tr=>{ const cells=[];
-      [...tr.childNodes].filter(n=>n.localName==="tc").forEach(tc=>{ const pr=[...tc.childNodes].find(n=>n.localName==="tcPr"); let span=1, cont=false;
+  tbls.forEach(tb=>{ const rows=[]; wKids(tb,"tr").forEach(tr=>{ const cells=[];
+      wKids(tr,"tc").forEach(tc=>{ const pr=[...tc.childNodes].find(n=>n.localName==="tcPr"); let span=1, cont=false;
         if(pr){ const gs=[...pr.childNodes].find(n=>n.localName==="gridSpan"); if(gs) span=+(gs.getAttributeNS(WNS,"val")||gs.getAttribute("w:val")||1)||1;
           const vm=[...pr.childNodes].find(n=>n.localName==="vMerge"); if(vm){ const v=vm.getAttributeNS(WNS,"val")||vm.getAttribute("w:val"); cont=!v||v==="continue"; } }
         const t=cont?"":docxText(tc); for(let k=0;k<span;k++) cells.push(k===0?t:""); });
       rows.push(cells); });
     tables.push(rows); });
-  [...body.childNodes].filter(n=>n.localName==="p").forEach(p=>{ const t=docxText(p); if(t) paras.push(t); });
+  wKids(body,"p").forEach(p=>{ const t=docxText(p); if(t) paras.push(t); });
   return {tables,paras}; }
 function htmlGrid(html){ const d=new DOMParser().parseFromString(html,"text/html"); const tables=[]; const paras=[];
   const txt=el=>{ const c=el.cloneNode(true); c.querySelectorAll("br").forEach(b=>b.replaceWith("\n")); c.querySelectorAll("p,div,li").forEach(b=>b.append("\n")); return wClean(c.textContent.replace(/[✔✓☑√]/g," ✓ ")); };
@@ -2705,7 +2706,7 @@ async function wordGrid(buf,name){ const u=new Uint8Array(buf);
   if(u[0]===0x7B&&u[1]===0x5C&&u[2]===0x72) throw new Error("ملف RTF؛ افتحه في Word واحفظه باسم ‎.docx");
   let s=new TextDecoder("utf-8").decode(u); if(/charset=["']?windows-1256/i.test(s.slice(0,3000))) s=new TextDecoder("windows-1256").decode(u);
   return htmlGrid(mhtToHtml(s)); }
-const W_LABELS=["المدرسة","اليوم والتاريخ","اليوم / التاريخ","اليوم/التاريخ","التاريخ","تاريخ الزيارة","اليوم","المادة","القسم","المادة / القسم","موضوع الدرس","الموضوع","عنوان الدرس","الصف","الصف / الشعبة","الشعبة","المعلم","اسم المعلم","المعلم/ة","الحصة","نوع المتابعة","نوع الزيارة","الزائر","الزائر/ة","اسم الزائر","صفة الزائر","الوظيفة","الاسم","ملاحظات","الغرض"].map(nkl);
+const W_LABELS=["القائم بالحضور","القائم","الزائر / الوظيفة","المدرسة","اليوم والتاريخ","اليوم / التاريخ","اليوم/التاريخ","التاريخ","تاريخ الزيارة","اليوم","المادة","القسم","المادة / القسم","موضوع الدرس","الموضوع","عنوان الدرس","الصف","الصف / الشعبة","الشعبة","المعلم","اسم المعلم","المعلم/ة","الحصة","نوع المتابعة","نوع الزيارة","الزائر","الزائر/ة","اسم الزائر","صفة الزائر","الوظيفة","الاسم","ملاحظات","الغرض"].map(nkl);
 function wordRecord(g,file,path){ const T2=g.tables; const rows=T2.flat(); const isLab=t=>{ const k=nkl(String(t).replace(/[:：]\s*$/,"")); return k&&W_LABELS.includes(k); };
   const val=labels=>{ const ks=labels.map(nkl);
     for(const r of rows){ for(let c=0;c<r.length;c++){ const raw=r[c]||""; const head=raw.split(/[:：]/)[0]; const k=nkl(raw.replace(/[:：]\s*$/,""));
@@ -2716,7 +2717,7 @@ function wordRecord(g,file,path){ const T2=g.tables; const rows=T2.flat(); const
   const allTxt=rows.map(r=>r.join(" ")).join(" ")+" "+g.paras.join(" ");
   if(!nkl(allTxt).includes(nkl("المعلم"))) throw new Error("لا يبدو أنه استمارة زيارة صفية");
   const warn=[]; let date=""; for(const c of [val(["اليوم والتاريخ","اليوم / التاريخ","التاريخ","تاريخ الزيارة"]),val(["اليوم"]),allTxt,file]){ date=impDate(c); if(date) break; } if(!date) warn.push("تاريخ غير مقروء – أدخله يدويًا");
-  const vr=val(["الزائر","الزائر/ة"]), job=val(["الوظيفة","صفة الزائر"]);
+  const vr=val(["الزائر","الزائر/ة","القائم بالحضور","القائم","الزائر / الوظيفة"]), job=val(["الوظيفة","صفة الزائر"]);
   const rec={rid:uid(),src:"word",file,path:path||file,teacherName:val(["المعلم","اسم المعلم","المعلم/ة"]).split("\n")[0],deptName:val(["المادة","القسم","المادة / القسم"]),date,
     period:periodFromText(val(["الحصة"])),section:val(["الصف","الصف / الشعبة","الشعبة"]).replace(/\s*-\s*/g,"-").replace(/^([^\d\s/]+)\s+(\d+)$/,"$1-$2"),topic:val(["موضوع الدرس","الموضوع","عنوان الدرس"]),
     mode:modeFromText(val(["نوع المتابعة","نوع الزيارة"])),note:val(["ملاحظات","الغرض"]),vrText:(job?job+" ":"")+vr,vName:val(["الاسم","اسم الزائر"]),ratings:{},strengths:"",devs:"",general:"",oldScore:null,warn};
@@ -2730,7 +2731,7 @@ function wordRecord(g,file,path){ const T2=g.tables; const rows=T2.flat(); const
   const marks=[]; let cmap=null, recCol=-1;
   T2.forEach(tb=>{ tb.forEach(r=>{ const hits=r.map((c,i)=>[i,lvOf(c)]).filter(([i,l])=>l>=0);
       if(hits.length>=3&&new Set(hits.map(h=>h[1])).size>=3){ cmap={}; hits.forEach(([i,l])=>{ if(cmap[l]==null) cmap[l]=i; }); recCol=r.findIndex(c=>nkl(c).includes("توصي")); return; }
-      if(cmap){ const on=Object.entries(cmap).filter(([l,i])=>isMk(r[i])); if(on.length){ const l=+on[0][0]; const used=new Set(Object.values(cmap).concat([recCol]));
+      if(cmap){ const on=Object.entries(cmap).filter(([l,i])=>isMk(r[i])); if(on.length){ const l=Math.max(...on.map(o=>+o[0]===4?-1:+o[0])); const used=new Set(Object.values(cmap).concat([recCol]));
           const txt=r.filter((c,i)=>!used.has(i)&&c&&c.length>8&&!DOMAINS.some(d=>nkl(d)===nkl(c))).sort((a,b)=>b.length-a.length);
           marks.push({k:l+1,t:txt.find(c=>IND.some(x=>nameSim(x.t,c)>0.5))||txt[0]||"",rec:recCol>=0?r[recCol]||"":"",multi:on.length>1}); return; } }
       // نموذج يكتب المستوى نصًا داخل الصف
@@ -2752,7 +2753,15 @@ function wordRecord(g,file,path){ const T2=g.tables; const rows=T2.flat(); const
   rec.devs=lines(after(["النقاط التي تحتاج إلى تطوير","النقاط التي تحتاج الى تطوير","جوانب تحتاج","تحتاج إلى تطوير"]));
   rec.general=wClean(after(["ملاحظات وتوصيات عامة","ملاحظة عامة","توصيات عامة"]));
   if(rec.general&&(rec.general===rec.strengths||nkl(rec.general).startsWith(nkl("نقاط القوة")))) rec.general="";
-  return [rec]; }
+  impFixRecs(rec); return [rec]; }
+// توصية مكتوبة في خلية مدموجة على مستوى المجال تُنقل إلى مؤشرات المجال التي تستحقها (المستوى 2–4)، وما تبقى يذهب إلى «النقاط التي تحتاج إلى تطوير»
+function impFixRecs(rec){ const R=rec.ratings; const extra=[]; const split=t=>String(t).split(/\n|(?:^|\s)[0-9٠-٩]{1,2}\s*[.\-–)]\s+/).map(s=>recNorm(s).replace(/^[\s.،]+/,"").trim()).filter(s=>s.length>4);
+  Object.keys(R).forEach(k=>{ const i=+k, q=R[k]; if(!q.rec||(q.l>=2&&q.l<=4)) return; if(q.l===1&&nameSim(q.rec,IND[i].s||"")>0.6) return;
+    const items=split(q.rec); q.rec=""; const cands=IND.filter(x=>x.d===IND[i].d&&R[x.i]&&R[x.i].l>=2&&R[x.i].l<=4);
+    items.forEach(t=>{ if(!cands.length){ extra.push(t); return; } let best=cands[0], bs=-1; cands.forEach(x=>{ const s=Math.max(nameSim(t,x.t),...((OLDRECS[x.i]||[]).map(o=>nameSim(t,o)*0.9)),nameSim(t,x.r3||"")*0.9); if(s>bs){ bs=s; best=x; } });
+      const cur=R[best.i].rec? split(R[best.i].rec):[]; cur.push(t); R[best.i].rec=cur.length>1?numberLines(cur):cur[0]; }); });
+  if(extra.length){ const cur=String(rec.devs||"").split("\n").map(recNorm).filter(Boolean); extra.forEach(t=>{ if(!cur.includes(t)) cur.push(t); }); rec.devs=numberLines(cur); }
+  if(!rec.devs){ const all=IND.filter(x=>R[x.i]&&R[x.i].l>=2&&R[x.i].rec).flatMap(x=>split(R[x.i].rec)); if(all.length) rec.devs=numberLines(all); } }
 async function impFromWord(buf,file,path){ const g=await wordGrid(buf,file); return wordRecord(g,file,path); }
 
 /* ---- الربط بالمعلمين والزائرين والدمج ---- */
