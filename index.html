@@ -792,14 +792,26 @@ function navOpen(on){ document.documentElement.classList.toggle("nav-open",!!on)
 try{ if(localStorage.getItem("hamza-side-mini")==="1") document.documentElement.classList.add("side-mini"); }catch(e){}
 function userMenu(){
   const u=S.user; const acc=acctMode();
-  modal("الحساب",`<p><b>${esc(u.name)}</b><br><span class="muted">${esc(roleLabel(u))}${u.uname?` · اسم المستخدم: <span dir="ltr">${esc(u.uname)}</span>`:""}</span></p>
-   ${acc?`<div class="fields"><label class="f">كلمة المرور الحالية<input type="password" id="pw-old" autocomplete="current-password"></label><label class="f">كلمة المرور الجديدة<input type="password" id="pw-new" autocomplete="new-password"></label></div><button class="btn" id="pw-save" style="margin-top:8px">تغيير كلمة المرور</button>`:""}`,
+  const bg=modal("الحساب",`<p><b>${esc(u.name)}</b><br><span class="muted">${esc(roleLabel(u))}${u.uname?` · اسم المستخدم: <span dir="ltr">${esc(u.uname)}</span>`:""}</span></p>
+   ${acc?`<p class="small muted" style="margin:6px 0 0">لتعديل كلمة المرور تواصل مع مدير النظام.</p>`:""}`,
    [{t:"تسجيل الخروج",cls:"danger",fn:()=>doLogout()}]);
-  const b=$("#pw-save"); if(b&&S.mode==="fb"){ b.onclick=async()=>{ const o=$("#pw-old").value, n=$("#pw-new").value; if(n.length<4){ toast("كلمة المرور الجديدة قصيرة"); return; }
-      try{ const cu=FB.auth.currentUser; await cu.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(cu.email,fbPass(o))); await cu.updatePassword(fbPass(n)); logAct("تغيير كلمة المرور",u.name); toast("تم تغيير كلمة المرور"); }catch(e){ toast(fbErr(e)); } }; }
-  else if(b) b.onclick=async()=>{ const a=S.root.accounts.find(x=>"u:"+x.u.toLowerCase()===u.key); const o=$("#pw-old").value, n=$("#pw-new").value;
-    if(!a||await sha(a.u.toLowerCase()+"|"+o)!==a.h){ toast("كلمة المرور الحالية غير صحيحة"); return; } if(n.length<4){ toast("كلمة المرور الجديدة قصيرة جدًا"); return; }
-    a.h=await sha(a.u.toLowerCase()+"|"+n); await persistRoot(); logAct("تغيير كلمة المرور",u.name); toast("تم تغيير كلمة المرور"); };
+  const o=$("#pw-open",bg); if(o) o.onclick=()=>{ bg.remove(); pwDialog(); };
+}
+const weakPw=(u,p)=>{ const s=String(p||""); return s.length<6||/^(admin123|123456|12345678|password|1234|0000)$/i.test(s)||s.toLowerCase()===String(u||"").toLowerCase()||/^\d{4}$/.test(s); };
+function pwRules(p,u){ const out=[]; if(p.length<6) out.push("6 أحرف على الأقل"); if(!/[0-9]/.test(p)||!/[A-Za-z\u0621-\u064A]/.test(p)) out.push("حروف وأرقام معًا"); if(u&&p.toLowerCase()===u.toLowerCase()) out.push("لا تطابق اسم المستخدم"); return out; }
+function pwDialog(forced){ const u=S.user;
+  const bg=modal("تغيير كلمة المرور",`${forced?`<p class="note" style="margin-top:0">كلمة المرور الحالية ضعيفة أو افتراضية؛ يُنصح بتغييرها الآن لحماية بيانات الزيارات.</p>`:""}
+   <div class="grid" style="gap:10px;max-width:420px"><label class="f">كلمة المرور الحالية<input type="password" id="pw-old" autocomplete="current-password" dir="ltr"></label>
+   <label class="f">كلمة المرور الجديدة<input type="password" id="pw-new" autocomplete="new-password" dir="ltr"></label>
+   <label class="f">تأكيد كلمة المرور الجديدة<input type="password" id="pw-new2" autocomplete="new-password" dir="ltr"></label>
+   <label class="row small"><input type="checkbox" id="pw-show" style="width:auto"> إظهار كلمات المرور</label><p class="small" id="pw-hint" style="margin:0;color:var(--ink-2)">الشروط: 6 أحرف على الأقل، حروف وأرقام معًا.</p></div>`,
+   [{t:"حفظ كلمة المرور",cls:"pri",fn:async bg=>{ const o=$("#pw-old",bg).value, n=$("#pw-new",bg).value, n2=$("#pw-new2",bg).value; const bad=pwRules(n,u.uname||"");
+      if(bad.length){ toast("كلمة المرور الجديدة: "+bad.join("، ")); return false; } if(n!==n2){ toast("كلمتا المرور الجديدتان غير متطابقتين"); return false; } if(n===o){ toast("اختر كلمة مرور مختلفة عن الحالية"); return false; }
+      if(S.mode==="fb"){ try{ const cu=FB.auth.currentUser; await cu.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(cu.email,fbPass(o))); await cu.updatePassword(fbPass(n)); }catch(e){ toast(/wrong-password|invalid-credential/.test(e.code||"")?"كلمة المرور الحالية غير صحيحة":fbErr(e)); return false; } }
+      else { const a=S.root.accounts.find(x=>"u:"+x.u.toLowerCase()===u.key); if(!a||await sha(a.u.toLowerCase()+"|"+o)!==a.h){ toast("كلمة المرور الحالية غير صحيحة"); return false; } a.h=await sha(a.u.toLowerCase()+"|"+n); await persistRoot(); }
+      S.pwNudge=false; logAct("تغيير كلمة المرور",u.name); toast("تم تغيير كلمة المرور بنجاح"); }}]);
+  $("#pw-show",bg).onchange=e=>$$("#pw-old,#pw-new,#pw-new2",bg).forEach(i=>i.type=e.target.checked?"text":"password");
+  $("#pw-new",bg).oninput=e=>{ const bad=pwRules(e.target.value,u.uname||""); const h=$("#pw-hint",bg); h.textContent=bad.length?"ينقصها: "+bad.join("، "):"✔ كلمة مرور جيدة"; h.style.color=bad.length?"var(--l3)":"var(--l1)"; };
 }
 function doLogout(){ if(S.view==="form"&&F&&F._dirty){confirmBox("ستفقد التعديلات غير المحفوظة. خروج؟",()=>{F=null;doLogout()},"خروج");return;} logAct("تسجيل خروج",""); CAL.open=null; S.user=null; lsSet("hamza-sess",null); if(S.mode==="fb"){ FB.auth.signOut(); return; } render(); }
 function updateMast(){}
@@ -816,7 +828,7 @@ function render(){
   }catch(e){ console.error(e); inner=`<div class="empty">حدث خطأ أثناء عرض هذه الصفحة: ${esc(e.message)}</div>`; }
   app.innerHTML=shell(inner);
   const m=$(".mast"); if(m) document.documentElement.style.setProperty("--mastH",m.offsetHeight+"px");
-  $("#umenu").onclick=userMenu;
+  $("#umenu").onclick=userMenu; if(S.pwNudge){ S.pwNudge=false; setTimeout(()=>pwDialog(true),400); }
   $("#bell").onclick=()=>{ const n=notifications(); const bg=modal("التنبيهات",n.length?`<ul class="ntf">${n.map((x,i)=>`<li class="${x.k}"><a href="#" data-n="${i}">${esc(x.t)}</a></li>`).join("")}</ul>`:`<p class="muted">لا توجد تنبيهات.</p>`);
     $$("[data-n]",bg).forEach(a=>a.onclick=e=>{ e.preventDefault(); const x=n[+a.dataset.n]; bg.remove(); if(x.go[0]==="visit") openVisit(x.go[1]); else { if(x.go[0]==="follow"){ FU.tab=x.go[1]; FU.mode="all"; } go(x.go[0]); } }); };
   const qs=$("#qsearch"); if(qs) qs.onchange=()=>{ const t=visibleTeachers().find(t=>t.name===qs.value.trim()); if(t) go("teacher",t.id); };
@@ -851,7 +863,7 @@ function loginView(){
   if(acctMode()) return wrap(`<form id="lg-form" autocomplete="on" class="lgx-form"><label class="f">اسم المستخدم<input id="lg-u" autocomplete="username" dir="ltr" required></label><label class="f">كلمة المرور<input id="lg-p" type="password" autocomplete="current-password" dir="ltr" required></label>
     <button class="btn pri lgx-btn" type="submit">تسجيل الدخول</button><span class="small" id="lg-msg" style="color:var(--l4);min-height:1em"></span></form>
     <p class="lgx-info">${S.mode==="fb"?"المنصة متصلة بقاعدة البيانات. ":""}ادخل باسم المستخدم (الجزء الأول من البريد الوزاري) وكلمة المرور التي سلّمها لك مدير النظام.</p>
-    ${S.mode==="fb"?`<p class="small" style="margin:8px 0 0;text-align:center"><a href="#" id="lg-boot">الإعداد الأول: إنشاء حساب مدير النظام</a></p>`:""}`);
+    ${S.mode==="fb"&&/[?&]setup\b/.test(location.search)?`<p class="small" style="margin:8px 0 0;text-align:center"><a href="#" id="lg-boot">الإعداد الأول: إنشاء حساب مدير النظام</a></p>`:""}`);
   const us=users(); const opts = LG.role? us.filter(u=>u.role===LG.role):[];
   const roleCards=[["principal","مدير المدرسة","اطلاع ومتابعة وتسجيل لجميع الفئات"],["deputy","النائب الأكاديمي","تقييم جميع المعلمين والمنسقين"],["coord","منسق القسم","زيارة معلمي القسم وتوثيق زيارات الموجه"],["teacher","المعلم","الاطلاع على زياراته والتأمل الذاتي وخطته"]];
   return wrap(`<p class="lgx-info" style="margin-top:0">لم تُفعَّل الحسابات بعد. ادخل بصفة المدير أو النائب الأكاديمي، ثم ارفع ملف المستخدمين من: الإعدادات ← المستخدمون والصلاحيات.</p>
@@ -868,7 +880,7 @@ function bindLogin(){
     [{t:"إنشاء",cls:"pri",fn:async bg=>{ const u=$("#bs-u",bg).value.trim(), p=$("#bs-p",bg).value, n=$("#bs-n",bg).value.trim(); if(!/^[a-z0-9._-]+$/i.test(u)||p.length<4||!n){ toast("اسم مستخدم إنجليزي، وكلمة مرور 4 أحرف فأكثر"); return false; }
       try{ await fbBootstrap(u,p,n); toast("أُنشئ حساب مدير النظام"); }catch(e){ toast(e.message||fbErr(e)); return false; } }}]); };
   if(fm&&S.mode==="fb"){ fm.addEventListener("submit",async e=>{ e.preventDefault(); const msg=$("#lg-msg"); msg.textContent="جارٍ الدخول…";
-    try{ await fbLogin($("#lg-u").value.trim(),$("#lg-p").value); msg.textContent=""; logAct("تسجيل دخول",""); }catch(err){ msg.textContent=fbErr(err); } }); return; }
+    const uu=$("#lg-u").value.trim(), pp=$("#lg-p").value; try{ await fbLogin(uu,pp); msg.textContent=""; logAct("تسجيل دخول",""); }catch(err){ msg.textContent=fbErr(err); } }); return; }
   if(fm){ fm.addEventListener("submit",async e=>{ e.preventDefault(); const msg=$("#lg-msg");
     if(Date.now()<LG.until){ msg.textContent=`محاولات كثيرة؛ انتظر ${Math.ceil((LG.until-Date.now())/1000)} ثانية.`; return; }
     const un=$("#lg-u").value.trim().toLowerCase().replace(/@.*$/,""); const pw=$("#lg-p").value;
@@ -2443,7 +2455,7 @@ function usersView(){
    <div class="row"><label class="btn gold" style="cursor:pointer">رفع ملف المستخدمين (Excel)<input type="file" id="u-file" accept=".xlsx,.xls,.csv" hidden></label><button class="btn" id="u-tpl">نموذج الملف</button><button class="btn" id="u-add">+ حساب</button>${S.mode==="fb"?`<button class="btn" id="u-relink">تحديث الربط بالكادر</button><button class="btn" id="u-rules">قواعد الحماية</button>`:""}</div></div>
    ${acc.length?`<div class="tbl-wrap" style="margin-top:10px"><table><thead><tr><th>الاسم</th><th>اسم المستخدم</th><th>الوظيفة</th><th>المادة</th><th class="c">الربط بالكادر</th><th class="c">آخر دخول</th><th class="c">الحالة</th><th></th></tr></thead><tbody>
    ${rows.map(a=>`<tr><td>${esc(a.name)}</td><td dir="ltr" class="small">${esc(a.u)}</td><td><select class="u-role" data-u="${esc(a.u)}" ${a.u===S.user.uname?"disabled":""}>${Object.entries(ROLE_NAMES).map(([k,v])=>`<option value="${k}" ${a.role===k?"selected":""}>${v}</option>`).join("")}</select></td><td class="small">${esc(a.dept||"")}</td><td class="c">${linked(a)}</td><td class="c small num">${a.last?fmtD(a.last.slice(0,10)):"—"}</td><td class="c">${a.disabled?'<span class="lv lv4">معطّل</span>':'<span class="lv lv1">فعّال</span>'}</td>
-   <td class="row" style="flex-wrap:nowrap"><button class="btn sm" data-upw="${esc(a.u)}">كلمة مرور</button>${a.u!==S.user.uname?`<button class="btn sm" data-udis="${esc(a.u)}">${a.disabled?"تفعيل":"تعطيل"}</button><button class="btn sm danger" data-udel="${esc(a.u)}">حذف</button>`:""}</td></tr>`).join("")}</tbody></table></div>`:""}</div>
+   <td class="row" style="flex-wrap:nowrap">${a.u!==S.user.uname?`<button class="btn sm" data-udis="${esc(a.u)}">${a.disabled?"تفعيل":"تعطيل"}</button><button class="btn sm danger" data-udel="${esc(a.u)}">حذف</button>`:""}</td></tr>`).join("")}</tbody></table></div>`:""}</div>
   <div class="card" style="margin-top:14px"><div class="row" style="justify-content:space-between"><div><h3>مصفوفة الصلاحيات</h3><p class="muted small" style="margin:2px 0 0">مدير النظام يملك كل الصلاحيات دائمًا. المنسق يرى قسمه فقط ما لم تُمنح له «الاطلاع على جميع الأقسام»، والمعلم يرى زياراته وخطته فقط.</p></div><div class="row"><button class="btn" id="pm-reset">الافتراضي</button><button class="btn pri" id="pm-save">حفظ الصلاحيات</button></div></div>
    <div class="tbl-wrap" style="margin-top:10px"><table><thead><tr><th>الصلاحية</th><th class="c">مدير النظام</th>${roles.map(r=>`<th class="c">${ROLE_NAMES[r]}</th>`).join("")}</tr></thead><tbody>
    ${CAPS.map(([c,l])=>`<tr><td>${esc(l)}</td><td class="c"><input type="checkbox" checked disabled style="width:auto"></td>${roles.map(r=>`<td class="c"><input type="checkbox" class="pm" data-r="${r}" data-c="${c}" ${(P[r]||[]).includes(c)?"checked":""} style="width:auto" ${c==="users.manage"&&r!=="principal"?"":""}></td>`).join("")}</tr>`).join("")}</tbody></table></div></div>`;
@@ -2497,7 +2509,14 @@ function bindUsersFB(){
   const rl=$("#u-relink"); if(rl) rl.onclick=async()=>{ try{ const n=await fbRelinkUsers(); toast(`حُدّث ربط ${n} حسابًا بالكادر`); }catch(e){ toast(fbErr(e)); } };
   const ru=$("#u-rules"); if(ru) ru.onclick=()=>{ const bg=modal("قواعد الحماية لـ Firestore",`<p class="small">انسخها والصقها في Firebase ← Firestore Database ← Rules ثم Publish.</p><textarea readonly dir="ltr" style="min-height:300px;font-family:monospace;font-size:12px">${esc(FB_RULES)}</textarea><button class="btn pri" id="ru-c" style="margin-top:8px">نسخ القواعد</button>`); $("#ru-c",bg).onclick=()=>copyText(FB_RULES); };
   const find=u=>(S.fbUsers||[]).find(x=>x.u===u);
-  $$("[data-upw]").forEach(b=>b.onclick=()=>modal("كلمة المرور",`<p class="small">لأسباب أمنية لا يمكن لمدير النظام تغيير كلمة مرور مستخدم آخر من داخل الصفحة. يغيّرها المستخدم بنفسه من قائمة الحساب. ولإعادة تعيينها: احذف الحساب من Firebase ← Authentication ← Users، ثم أضفه هنا من «+ حساب» بكلمة مرور جديدة.</p>`));
+  $$("[data-upw]").forEach(b=>b.onclick=()=>{ const x=find(b.dataset.upw); if(!x) return;
+    const bg=modal(`تغيير كلمة مرور: ${x.name}`,`<p class="small muted" style="margin-top:0">أدخل كلمة المرور الحالية لهذا المستخدم (الموجودة في ملف المستخدمين أو التي سلّمتها له) ثم الجديدة. لا تُحفظ كلمات المرور نصًا في النظام.</p>
+     <div class="grid" style="gap:10px;max-width:420px"><label class="f">اسم المستخدم<input value="${esc(x.u)}" dir="ltr" readonly></label><label class="f">كلمة المرور الحالية<input type="password" id="ap-old" dir="ltr"></label><label class="f">كلمة المرور الجديدة<input type="password" id="ap-new" dir="ltr"></label><label class="row small"><input type="checkbox" id="ap-show" style="width:auto"> إظهار</label></div>
+     <details class="small" style="margin-top:10px"><summary style="cursor:pointer;color:var(--maroon-2)">نسي المستخدم كلمة المرور ولا تعرف الحالية؟</summary><p style="margin:6px 0 0">افتح Firebase ← Authentication ← Users، واحذف المستخدم <b dir="ltr">${esc(x.u)}@hamza-visits.app</b>، ثم أضفه من «+ حساب» هنا بالاسم نفسه وكلمة مرور جديدة؛ تبقى زياراته وصلاحياته كما هي.</p></details>`,
+     [{t:"تغيير كلمة المرور",cls:"pri",fn:async bg=>{ const o=$("#ap-old",bg).value, n=$("#ap-new",bg).value; const bad=pwRules(n,x.u); if(bad.length){ toast("كلمة المرور الجديدة: "+bad.join("، ")); return false; }
+        const ca=fbCreator(); try{ const cr=await ca.signInWithEmailAndPassword(FB_MAIL(x.u),fbPass(o)); await cr.user.updatePassword(fbPass(n)); }catch(e){ toast(/wrong-password|invalid-credential/.test(e.code||"")?"كلمة المرور الحالية لهذا المستخدم غير صحيحة":fbErr(e)); return false; } finally{ try{ await ca.signOut(); }catch(_){} }
+        logAct("تغيير كلمة مرور مستخدم",x.name); toast(`تم تغيير كلمة مرور ${x.name}`); }}]);
+    $("#ap-show",bg).onchange=e=>$$("#ap-old,#ap-new",bg).forEach(i=>i.type=e.target.checked?"text":"password"); });
   $$("[data-udis]").forEach(b=>b.onclick=async()=>{ const x=find(b.dataset.udis); try{ await FB.db.doc("users/"+x.uid).update({disabled:!x.disabled}); logAct(x.disabled?"تفعيل حساب":"تعطيل حساب",x.name); }catch(e){ toast(fbErr(e)); } });
   $$("[data-udel]").forEach(b=>b.onclick=()=>confirmBox("حذف صلاحيات هذا الحساب؟ (يبقى حساب الدخول في Firebase دون أي صلاحية)",async()=>{ const x=find(b.dataset.udel); try{ await FB.db.doc("users/"+x.uid).delete(); logAct("حذف حساب",x.name); }catch(e){ toast(fbErr(e)); } },"حذف"));
   $$(".u-role").forEach(s=>s.onchange=async()=>{ const x=find(s.dataset.u); if(x.role==="admin"&&s.value!=="admin"&&(S.fbUsers||[]).filter(a=>a.role==="admin"&&!a.disabled).length<2){ toast("يجب أن يبقى مدير نظام واحد على الأقل"); s.value="admin"; return; }
