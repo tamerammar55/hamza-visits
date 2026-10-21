@@ -939,7 +939,7 @@ function newVisit(pre={}){
   const u=S.user; const roles=visitorRolesFor(u);
   return Object.assign({id:uid(),year:S.year,status:"draft",date:today(),period:"الأولى",section:"",topic:"",mode:MODES[0],purpose:"eval",
     visitorRole:roles[0],visitorName:u.name,recordedBy:u.key,recordedByName:u.name,teacherId:"",deptId:u.role==="coord"?u.deptId:"",ratings:{},pdr:{},focus:[],
-    strengths:"",devs:"",action:"",general:BANK.gen||"",conf:{date:"",pre:false,notes:""},reflection:"",tot:["","",""],totN:"",follow:{},nextDate:"",createdAt:new Date().toISOString()},pre);
+    strengths:"",devs:"",action:"",general:"",conf:{date:"",pre:false,notes:""},reflection:"",tot:["","",""],totN:"",follow:{},nextDate:"",createdAt:new Date().toISOString()},pre);
 }
 function startForm(v){ F=clone(v); if(F.status==="planned"){F.status="draft";F._fromPlan=true;F.recordedBy=S.user.key;F.recordedByName=S.user.name;} F.recordedBy=F.recordedBy||S.user.key; S.view="form"; S.arg=null; render(); window.scrollTo(0,0); }
 function formView(){
@@ -983,7 +983,7 @@ function formView(){
     <div class="grid" style="gap:10px">${prevOpen.map(p=>`<div class="row" style="justify-content:space-between;border-bottom:1px dashed var(--line);padding-bottom:8px"><div style="flex:1 1 300px;min-width:0" class="small"><b>${esc(IND[p.ind]?IND[p.ind].t:"توصية عامة")}</b><br>${esc(p.text)}<div class="muted">من زيارة ${fmtD((S.visits[p.visitId]||{}).date)}</div></div><select class="f-follow" data-id="${p.id}" style="max-width:240px"><option value="">— لم تُتابع في هذه الزيارة —</option>${[4,3,2,1].map(k=>`<option value="${k}" ${String(F.follow[p.id])===String(k)?"selected":""}>${FOLLOW[k]}</option>`).join("")}</select></div>`).join("")}</div></section>`:""}
    <section class="card" id="s5" style="margin-top:16px"><h3>ملاحظات وتوصيات عامة</h3>
     <div class="grid" style="margin-top:8px">
-     <label class="f">ملاحظة عامة<textarea id="f-general">${esc(F.general)}</textarea></label>
+     <div class="f"><div class="rec-h"><label for="f-general">ملاحظة عامة</label>${BANK.gen?`<button type="button" class="btn sm ghost" id="f-gen-ins" title="${esc(BANK.gen)}">إدراج العبارة المقترحة</button>`:""}</div><textarea id="f-general" placeholder="اختياري">${esc(F.general)}</textarea></div>
      <div class="row" style="justify-content:space-between"><b class="small">نقاط القوة لدى المعلم</b><button class="btn sm" id="f-autoS" type="button">تجميع من المؤشرات</button></div>
      <textarea id="f-strengths" aria-label="نقاط القوة" placeholder="اختر من القائمة أدناه (أكثر من اختيار) أو اكتب">${esc(F.strengths)}</textarea>${pickHTML("f-strengths","s","قائمة نقاط القوة")}
      <div class="row" style="justify-content:space-between"><b class="small">النقاط التي تحتاج إلى تطوير (التوصيات)</b><button class="btn sm" id="f-autoD" type="button">تجميع من المؤشرات</button></div>
@@ -1125,6 +1125,7 @@ function bindForm(){
   $$(".f-focus").forEach(c=>c.onchange=()=>{ readForm(); const i=+c.value; F.focus=c.checked?[...new Set([...F.focus,i])]:F.focus.filter(x=>x!==i); F._dirty=true; rerenderKeep(); });
   $$(".lvb").forEach(b=>b.onclick=()=>lvClick(b)); bindRecBank(document); bindPicks();
   $$(".pdr").forEach(b=>b.onclick=()=>{ const k=+b.dataset.k,l=+b.dataset.l; F.pdr[k]=F.pdr[k]===l?undefined:l; $$(`.pdr[data-k="${k}"]`).forEach(x=>x.setAttribute("aria-pressed",String(F.pdr[k]===+x.dataset.l))); F._dirty=true; });
+  const gi=$("#f-gen-ins"); if(gi) gi.onclick=()=>{ const t=$("#f-general"); t.value=(t.value.trim()?t.value.trim()+"\n":"")+BANK.gen; F._dirty=true; };
   $("#f-autoS").onclick=()=>{ readForm(); $("#f-strengths").value=compileStrengths(); F._dirty=true; };
   $("#f-autoD").onclick=()=>{ readForm(); $("#f-devs").value=compileDevs(); F._dirty=true; };
   $("#f-actionPick").onchange=e=>{ const i=e.target.value; if(i!==""){ readForm(); $("#f-action").value=(F.ratings[i]||{}).rec||IND[i].r3; } };
@@ -1146,9 +1147,8 @@ async function saveForm(close){
   if(close){
     const s=scoreOf(F);
     if(F.purpose!=="peer"&&!s.n){ toast("قدّر مؤشرًا واحدًا على الأقل قبل الاعتماد"); return; }
-    if(!F.strengths.trim()) F.strengths=compileStrengths();
-    if(!F.devs.trim()) F.devs=compileDevs();
   }
+  F.sv=2; // الاستمارة لا تعرض إلا ما كتبه الزائر أو اختاره
   const t=T(F.teacherId);
   const v=clone(F); delete v._dirty; delete v._existing; delete v._fromPlan;
   v.deptId=t.deptId; v.term=termOf(v.date);
@@ -1208,6 +1208,13 @@ const OFF = {
 function visitRef(v){ const y=String(vy(v)).replace(/\D/g,"").slice(2,4)+String(vy(v)).replace(/\D/g,"").slice(6,8); const t=T(v.teacherId)||{}; const all=Object.values(S.visits).filter(x=>vy(x)===vy(v)&&x.status!=="planned").sort((a,b)=>(a.createdAt||"").localeCompare(b.createdAt||"")); const n=all.findIndex(x=>x.id===v.id)+1; return `HMZ-${y}-${String(n||all.length+1).padStart(4,"0")}`; }
 function docHead(big){ const src=bannerSrc(); const h=big?84:62; if(!src) return `<div class="doc-head" style="text-align:center;padding:4px 0 8px;border-bottom:3px solid ${OFF.gold};margin-bottom:8px"><b style="font-size:16px;color:${OFF.maroon}">${esc(S.cfg.school)}</b></div>`;
   return `<div class="doc-head" style="text-align:center;padding:2px 0 6px;border-bottom:3px solid ${OFF.gold};margin-bottom:8px"><img src="${src}" height="${h}" width="${Math.round(h*6.39)}" alt="${esc(S.cfg.school)}" style="height:${h}px;width:auto;max-width:100%"></div>`; }
+// الزيارات القديمة: إخفاء ما أضافه النظام تلقائيًا (عبارة القوة/الملاحظة الافتراضية، وقائمة نقاط القوة المجمّعة آليًا)
+function isAutoRec(v,i,r){ if(v.sv===2||v.imp||!r||!r.rec) return false; const x=IND[i]; const t=recNorm(r.rec); return (r.l===1&&t===recNorm(x.s))||(r.l===2&&[x.r2,x.m].some(a=>a&&recNorm(a)===t)); }
+function shownGeneral(v){ const g=String(v.general||""); return (v.sv!==2&&!v.imp&&BANK.gen&&recNorm(g)===recNorm(BANK.gen))?"":g; }
+function shownRec(v,i){ const r=(v.ratings||{})[i]; if(!r||!r.rec) return ""; return isAutoRec(v,i,r)?"":r.rec; }
+function shownStrengths(v){ const s=String(v.strengths||""); if(v.sv===2||v.imp||!s.trim()) return s; const R=v.ratings||{};
+  const auto=new Set(IND.filter(x=>(R[x.i]||{}).l===1).flatMap(x=>[x.s,...String(R[x.i].rec||"").split("\n")]).map(recNorm).filter(Boolean));
+  const lines=s.split("\n").map(recNorm).filter(Boolean); return lines.length&&lines.every(l=>auto.has(l))?"":s; }
 function formSheet(v){
   const t=T(v.teacherId)||{}; const s=scoreOf(v); const lab=labelOf(s.avg); const yr=vy(v);
   const B=`border:1px solid ${OFF.line};`;
@@ -1220,15 +1227,15 @@ function formSheet(v){
   let rows="";
   DOMAINS.forEach((dn,di)=>{ const items=IND.filter(x=>x.d===di);
     items.forEach((x,j)=>{ const r=v.ratings[x.i]; const l=r&&r.l;
-      const rec = l===1?`<span style="color:${OFF.lv[1][0]}">✦ نقطة قوة: ${esc(r.rec||x.s)}</span>`:(l!=null&&l!==0)?esc(r.rec||"").replace(/\n/g,"<br>"):l===0&&r.rec?`<span style="color:${OFF.gray}">${esc(r.rec)}</span>`:"";
+      const sr=shownRec(v,x.i); const rec = l===1?(sr?`<span style="color:${OFF.lv[1][0]}">${esc(sr).replace(/\n/g,"<br>")}</span>`:""):(l!=null&&l!==0)?esc(sr).replace(/\n/g,"<br>"):l===0&&r.rec?`<span style="color:${OFF.gray}">${esc(r.rec)}</span>`:"";
       rows+=`<tr style="page-break-inside:avoid"><td style="border-right:1px solid ${OFF.line};border-left:1px solid ${OFF.line};${j===0?`border-top:1px solid ${OFF.line};`:"border-top:0;"}${j===items.length-1?"":"border-bottom:0;"}background:${OFF.pink};text-align:center;font-weight:bold;font-size:12.5px;vertical-align:top;padding:4px 3px">${j===0?dn:""}</td><td ${td("font-size:11.5px;word-wrap:break-word;white-space:normal")}>${esc(x.t)}</td>${[1,2,3,4,0].map(k=>mark(r,k)).join("")}<td ${td("font-size:11px;line-height:1.45;word-wrap:break-word")}>${rec}${r&&r.n?`<div style="color:${OFF.gray};font-size:10px;margin-top:2px">الشاهد: ${esc(r.n)}</div>`:""}</td></tr>`; });
     const da=s.dom[di]; const dl=labelOf(da);
     rows+=`<tr style="page-break-inside:avoid"><td colspan="8" ${td(`background:${OFF.soft};font-size:11px;text-align:right;color:${OFF.gray}`)}>خلاصة مجال «${dn}»: <b style="color:${OFF.lv[dl.c][0]}">${da==null?"لم يُقس":`${fix1(da)} – ${dl.t}`}</b></td></tr>`;
   });
   if(v.pdr&&Object.values(v.pdr).some(x=>x!=null)) PD_ITEMS.forEach((p,k)=>{ const r={l:v.pdr[k]}; rows+=`<tr>${k===0?`<td ${td(`text-align:center;font-weight:bold;background:${OFF.pink};font-size:11px`)} rowspan="3">التنمية المهنية والتأمل الذاتي</td>`:""}<td ${td("font-size:11.5px")}>${esc(p)}</td>${[1,2,3,4,0].map(q=>mark(r.l==null?null:r,q)).join("")}${k===0?`<td ${td("font-size:11px")} rowspan="3">${esc(v.pdrec||"")}</td>`:""}</tr>`; });
-  const list=txt=>{ const a=String(txt||"").split(/\n+/).map(x=>x.replace(/^\s*[-•–]\s*/,"").trim()).filter(Boolean); return a.length?a.map(x=>`<div style="margin:2px 0">• ${esc(x)}</div>`).join(""):`<span style="color:${OFF.gray}">—</span>`; };
+  const list=txt=>{ const a=String(txt||"").split(/\n+/).map(x=>x.replace(/^\s*[-•–]\s*/,"").trim()).filter(Boolean); return a.length?a.map(x=>`<div style="margin:2px 0">${/^[0-9٠-٩]{1,2}\s*[.\-)]/.test(x)?"":"• "}${esc(x)}</div>`).join(""):`<span style="color:${OFF.gray}">—</span>`; };
   const tot=totPct(v);
-  const others=[v.general?esc(v.general):"", v.conf&&v.conf.date?`عُقد لقاء التغذية الراجعة بتاريخ ${fmtD(v.conf.date)}${v.conf.pre?"، وسبقه لقاء قبلي لتحديد محور التركيز":""}.${v.conf.notes?" "+esc(v.conf.notes):""}`:"", tot!=null?`نسبة انشغال الطلاب بمهام التعلّم في لقطات الملاحظة: ${pct(tot)}.`:"", v.reflection?`تأمل المعلم: ${esc(v.reflection)}`:""].filter(Boolean);
+  const gen=shownGeneral(v); const others=[gen?esc(gen):"", v.conf&&v.conf.date?`عُقد لقاء التغذية الراجعة بتاريخ ${fmtD(v.conf.date)}${v.conf.pre?"، وسبقه لقاء قبلي لتحديد محور التركيز":""}.${v.conf.notes?" "+esc(v.conf.notes):""}`:"", tot!=null?`نسبة انشغال الطلاب بمهام التعلّم في لقطات الملاحظة: ${pct(tot)}.`:"", v.reflection?`تأمل المعلم: ${esc(v.reflection)}`:""].filter(Boolean);
   const cnt=s.cnt; const total=cnt[1]+cnt[2]+cnt[3]+cnt[4];
   const distBar=total?`<table width="100%" style="border-collapse:collapse;height:12px"><tr>${[1,2,3,4].filter(k=>cnt[k]).map(k=>`<td style="background:${OFF.lv[k][0]};width:${cnt[k]/total*100}%;height:10px;font-size:1px">&nbsp;</td>`).join("")}</tr></table>`:"";
   return `<div dir="rtl" style="font-family:'Lusail','Sakkal Majalla','Traditional Arabic','Simplified Arabic',Arial,sans-serif;font-size:13px;color:${OFF.ink};width:100%;margin:0 auto">
@@ -1250,7 +1257,7 @@ function formSheet(v){
    <div style="font-size:10px;color:${OFF.gray};margin-top:2px">النسبة: مستكملة 100%، معظمها 75%، بعضها 50%، غير متوفرة 25%، ولا يدخل «لم يتم القياس» في الحساب. القراءة مؤشر لزيارة واحدة، والحكم على الأداء يُبنى على مجموع الزيارات خلال العام.</div></div>`:""}
   <div class="pdf-keep" style="page-break-inside:avoid;break-inside:avoid">${bar("ثالثًا: ملاحظات وتوصيات عامّة")}
   <table width="100%" style="border-collapse:collapse;page-break-inside:avoid">
-   <tr><td ${lb("font-size:14px")}>نقاط القوّة عند المعلّم:</td></tr><tr><td ${td("padding:6px 10px")}>${list(v.strengths)}</td></tr>
+   <tr><td ${lb("font-size:14px")}>نقاط القوّة عند المعلّم:</td></tr><tr><td ${td("padding:6px 10px")}>${list(shownStrengths(v))}</td></tr>
    <tr><td ${td("padding:6px 10px")}><b>جوانب أخرى:</b> ${others.length?others.join("<br>"):`<span style="color:${OFF.gray}">—</span>`}</td></tr>
    <tr><td ${lb("font-size:14px")}>النّقاط الّتي تحتاج إلى تطوير:</td></tr><tr><td ${td("padding:6px 10px")}>${list(v.devs)}</td></tr>
    ${v.action?`<tr><td ${td(`padding:7px 10px;background:#FFF8E6;border-right:5px solid ${OFF.gold}`)}><b style="color:#7A5C12">الخطوة الإجرائية ذات الأولوية حتى الزيارة القادمة:</b> ${esc(v.action)}${v.nextDate?` <span style="color:${OFF.gray}">— موعد المتابعة: <span dir="ltr">${fmtD(v.nextDate)}</span></span>`:""}</td></tr>`:""}
@@ -1280,7 +1287,7 @@ function mailHTML(v){ const m=mailParts(v); const t=T(v.teacherId)||{}; const s=
   <tr><td style="background:${OFF.pink};padding:5px 8px;border:1px solid #d8c4c3"><b>موضوع الدرس</b></td><td style="padding:5px 8px;border:1px solid #d8c4c3">${esc(v.topic||"—")}</td></tr>
   <tr><td style="background:${OFF.pink};padding:5px 8px;border:1px solid #d8c4c3"><b>الزائر</b></td><td style="padding:5px 8px;border:1px solid #d8c4c3">${esc(ROLES[v.visitorRole]||"")} – ${esc(v.visitorName)}</td></tr>
   ${v.purpose!=="peer"?`<tr><td style="background:${OFF.pink};padding:5px 8px;border:1px solid #d8c4c3"><b>القراءة العامة</b></td><td style="padding:5px 8px;border:1px solid #d8c4c3"><b style="color:${OFF.lv[lab.c][0]}">${esc(lab.t)}</b> (${fix1(s.avg)})</td></tr>`:""}</table>
-  <p style="margin:12px 0 2px"><b style="color:${OFF.lv[1][0]}">نقاط القوة</b></p><ul style="margin:0;padding-right:20px">${li(v.strengths)}</ul>
+  <p style="margin:12px 0 2px"><b style="color:${OFF.lv[1][0]}">نقاط القوة</b></p><ul style="margin:0;padding-right:20px">${li(shownStrengths(v))}</ul>
   <p style="margin:12px 0 2px"><b style="color:${OFF.lv[4][0]}">النقاط التي تحتاج إلى تطوير</b></p><ul style="margin:0;padding-right:20px">${li(v.devs)}</ul>
   ${v.action?`<div style="margin-top:12px;background:#FFF8E6;border-right:5px solid ${OFF.gold};padding:8px 12px"><b>الخطوة ذات الأولوية حتى الزيارة القادمة:</b> ${esc(v.action)}${v.nextDate?`<br><span style="color:#6B5E60">موعد المتابعة: <span dir="ltr">${fmtD(v.nextDate)}</span></span>`:""}</div>`:""}
   <p style="font-size:13px;color:#A93A34;margin-top:12px">يُعدّ إرسال هذا التقرير إلى بريدكم مجزيًا عن التوقيع وملزمًا بما جاء فيه، ونأمل تنفيذ التوصيات الحالية والسابقة التي نوقشت معكم.</p>
@@ -1610,7 +1617,7 @@ function mailParts(v){
 ${v.purpose!=="peer"?`• القراءة العامة للزيارة: ${labelOf(s.avg).t} (${fix1(s.avg)})
 `:""}
 نقاط القوة:
-${v.strengths||"—"}
+${shownStrengths(v)||"—"}
 
 النقاط التي تحتاج إلى تطوير (التوصيات):
 ${v.devs||"—"}
@@ -1619,8 +1626,8 @@ ${v.action?`
 ${v.action}${v.nextDate?`
 موعد المتابعة المقترح: ${fmtD(v.nextDate)}`:""}
 `:""}
-${v.general?`
-${v.general}
+${shownGeneral(v)?`
+${shownGeneral(v)}
 `:""}
 مع خالص التقدير،
 ${v.visitorName}
