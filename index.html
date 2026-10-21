@@ -43,7 +43,7 @@
   --shadow:0 1px 2px rgba(0,0,0,.4); color-scheme:dark}
 *{box-sizing:border-box}
 html{direction:rtl}
-body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.65;direction:rtl}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.65;direction:rtl}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--maroon)}
 h1,h2,h3{font-family:var(--f-display);font-weight:700;text-wrap:balance;margin:0;line-height:1.35}
 h2{font-size:1.35rem} h3{font-size:1.05rem}
@@ -180,6 +180,7 @@ main#main{padding:22px max(18px,env(safe-area-inset-right,0px)) 60px max(18px,en
   .mfoot{position:sticky;bottom:calc(-16px - env(safe-area-inset-bottom,0px));background:var(--surface);padding-block:10px}
   .login{margin:18px auto}
   .login-banner{background:#fff;border-radius:12px;padding:10px 14px;margin-bottom:18px;text-align:center;border:1px solid var(--line)}.login-banner img{max-width:100%;height:auto;max-height:96px}
+
 .login .hero{flex-direction:column;text-align:center}
   .ind{padding:10px}
   .seg{width:100%}
@@ -311,6 +312,28 @@ div.f{display:flex;flex-direction:column;gap:4px;font-size:.82rem;font-weight:60
 .hidden-print{}
 @media print{.mast,.tabs,.hidden-print,.btn{display:none!important}body{background:#fff}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* login split */
+.lgx{min-height:100vh;min-height:100dvh;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);direction:rtl}
+.lgx-hero{position:relative;color:#fff;padding:44px clamp(24px,5vw,72px);display:flex;flex-direction:column;justify-content:space-between;gap:30px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='88' height='88' viewBox='0 0 88 88'%3E%3Cg fill='none' stroke='%23ffffff' stroke-opacity='0.07' stroke-width='1.2'%3E%3Cpath d='M44 8 L52 36 L80 44 L52 52 L44 80 L36 52 L8 44 L36 36 Z'/%3E%3Cpath d='M44 24 L58 30 L64 44 L58 58 L44 64 L30 58 L24 44 L30 30 Z'/%3E%3Cpath d='M0 0 L8 8 M88 0 L80 8 M0 88 L8 80 M88 88 L80 80'/%3E%3C/g%3E%3C/svg%3E"),radial-gradient(120% 90% at 85% 10%,#8E2A38 0%,#6A1A26 45%,#3E0E16 100%);background-size:88px 88px,cover}
+.lgx-brand{display:flex;align-items:center;gap:14px}.lgx-brand b{display:block;font-size:1.15rem}.lgx-brand small{opacity:.8;font-size:.85rem}
+.lgx-logo{width:64px;height:64px;border-radius:50%;border:2px solid var(--gold);background:rgba(255,255,255,.06);display:grid;place-items:center;overflow:hidden;color:var(--gold);font-size:1.6rem;font-weight:700;box-shadow:0 0 0 6px rgba(201,161,59,.12)}
+.lgx-logo img{width:100%;height:100%;object-fit:contain;background:#fff}
+.lgx-copy h1{font-size:clamp(2rem,3.4vw,3rem);line-height:1.35;margin:0 0 18px;color:#fff;font-weight:800}.lgx-copy h1 span{color:#E2BE62}
+.lgx-copy p{max-width:560px;font-size:1.02rem;line-height:1.9;opacity:.9;margin:0 0 22px}
+.lgx-feat{list-style:none;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:10px 26px;font-weight:700}.lgx-feat li::before{content:"◆";color:#E2BE62;margin-left:8px;font-size:.8em}
+.lgx-foot{font-size:.82rem;opacity:.7}
+.lgx-side{display:grid;place-items:center;padding:32px 20px;background:var(--bg)}
+.lgx-card{width:min(100%,460px);background:var(--surface);border:1px solid var(--line);border-radius:22px;box-shadow:0 18px 50px rgba(60,20,28,.12);padding:30px 32px;text-align:right}
+.lgx-banner{display:block;width:100%;max-height:70px;object-fit:contain;margin:0 auto 14px;background:#fff;border-radius:8px}
+.lgx-card h2{text-align:center;font-size:1.6rem;margin:0}.lgx-sub{text-align:center;color:var(--ink-2);margin:6px 0 10px;font-size:.92rem}
+.lgx-yr{display:flex;justify-content:center;align-items:center;gap:8px;font-size:.82rem;color:var(--ink-2);margin-bottom:16px}
+.lgx-form{display:grid;gap:14px}.lgx-form input{padding:12px 14px;border-radius:12px;background:var(--surface-2)}
+.lgx-btn{width:100%;justify-content:center;padding:13px;border-radius:12px;font-size:1.02rem;margin-top:6px;box-shadow:0 8px 18px color-mix(in srgb,var(--maroon) 30%,transparent)}
+.lgx-info{border:1px solid var(--line);background:var(--surface-2);border-radius:12px;padding:10px 14px;font-size:.86rem;color:var(--ink-2);margin:14px 0 0;line-height:1.8}
+.lgx-legal{text-align:center;font-size:.78rem;color:var(--ink-2);margin:14px 0 0}
+.lgx-roles{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media (max-width:900px){.lgx{grid-template-columns:1fr}.lgx-hero{padding:22px 20px;gap:14px}.lgx-copy p,.lgx-foot{display:none}.lgx-copy h1{font-size:1.6rem;margin:0 0 10px}.lgx-side{padding:18px 14px 30px;place-items:start center}.lgx-card{padding:22px 18px}.lgx-roles{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -813,22 +836,30 @@ function bindPer(){ const p=$("#per"); if(p) p.onchange=()=>{PER=p.value;lsSet("
 /* ============ الدخول ============ */
 let LG={role:null,fails:0,until:0};
 function loginView(){
-  const head=`${bannerSrc()?`<div class="login-banner"><img src="${bannerSrc()}" alt="${esc(S.cfg.school)}"></div>`:""}<div class="hero"><div class="logo">${logoHTML()}</div><div><div class="eyebrow">${esc(S.cfg.school)}</div><h1>نظام الزيارات الصفية</h1><p class="muted" style="margin:0">وفق استمارة الإشراف على أداء معلّم المعتمدة</p><label class="row small" style="margin-top:6px">العام الأكاديمي ${yearSelect("lg-yr")}</label></div></div>`;
-  if(S.mode==="fb"&&S.fbLoading) return `<div class="login">${head}<div class="card" style="max-width:460px"><p class="muted">جارٍ الاتصال بقاعدة البيانات…</p></div></div>`;
-  if(acctMode()) return `<div class="login">${head}<div class="card" style="max-width:460px"><h3 style="margin-bottom:10px">تسجيل الدخول</h3>
-   <form id="lg-form" autocomplete="on"><div class="grid" style="gap:10px"><label class="f">اسم المستخدم<input id="lg-u" autocomplete="username" dir="ltr" required></label><label class="f">كلمة المرور<input id="lg-p" type="password" autocomplete="current-password" dir="ltr" required></label></div>
-   <div class="row" style="margin-top:12px"><button class="btn pri" type="submit">دخول</button><span class="small" id="lg-msg" style="color:var(--l4)"></span></div></form>
-   <p class="muted small" style="margin:12px 0 0">اسم المستخدم هو الجزء الأول من البريد الوزاري. لنسيان كلمة المرور تواصل مع مدير النظام.</p>${S.mode==="fb"?`<p class="small" style="margin:10px 0 0"><a href="#" id="lg-boot">الإعداد الأول: إنشاء حساب مدير النظام</a></p>`:""}</div></div>`;
+  const sch=S.cfg.school||""; const short=sch.replace(/\s*الإعدادية.*$/,"").trim(); const rest=(sch.match(/الإعدادية.*$/)||[""])[0];
+  const wrap=inner=>`<div class="lgx"><section class="lgx-hero" aria-hidden="false">
+   <div class="lgx-brand"><div class="lgx-logo">${logoHTML()}</div><div><b>مدرسة ${esc(short)}</b><small>${esc(rest||"")}${rest?" · ":""}دولة قطر</small></div></div>
+   <div class="lgx-copy"><h1>ممارسات صفية أفضل<br><span>تبدأ من زيارة مُتقنة</span></h1>
+    <p>منصة موحّدة لتخطيط الزيارات الصفية وتوثيقها وفق الاستمارة المعتمدة، ومتابعة التوصيات وخطط النمو المهني، بصلاحيات تناسب كل دور في المدرسة.</p>
+    <ul class="lgx-feat"><li>استمارة معتمدة</li><li>متابعة التوصيات</li><li>تقارير رسمية</li></ul></div>
+   <div class="lgx-foot">وزارة التربية والتعليم والتعليم العالي · ${esc(S.year)}</div></section>
+   <main class="lgx-side"><div class="lgx-card">${bannerSrc()?`<img class="lgx-banner" src="${bannerSrc()}" alt="${esc(sch)}">`:""}
+    <h2>نظام الزيارات الصفية</h2><p class="lgx-sub">مدرسة ${esc(sch)}</p>
+    <label class="lgx-yr">العام الأكاديمي ${yearSelect("lg-yr")}</label>${inner}
+    <p class="lgx-legal">الاستخدام مقصور على منسوبي المدرسة المخوّلين.</p></div></main></div>`;
+  if(S.mode==="fb"&&S.fbLoading) return wrap(`<p class="lgx-info">جارٍ الاتصال بقاعدة البيانات…</p>`);
+  if(acctMode()) return wrap(`<form id="lg-form" autocomplete="on" class="lgx-form"><label class="f">اسم المستخدم<input id="lg-u" autocomplete="username" dir="ltr" required></label><label class="f">كلمة المرور<input id="lg-p" type="password" autocomplete="current-password" dir="ltr" required></label>
+    <button class="btn pri lgx-btn" type="submit">تسجيل الدخول</button><span class="small" id="lg-msg" style="color:var(--l4);min-height:1em"></span></form>
+    <p class="lgx-info">${S.mode==="fb"?"المنصة متصلة بقاعدة البيانات. ":""}ادخل باسم المستخدم (الجزء الأول من البريد الوزاري) وكلمة المرور التي سلّمها لك مدير النظام.</p>
+    ${S.mode==="fb"?`<p class="small" style="margin:8px 0 0;text-align:center"><a href="#" id="lg-boot">الإعداد الأول: إنشاء حساب مدير النظام</a></p>`:""}`);
   const us=users(); const opts = LG.role? us.filter(u=>u.role===LG.role):[];
   const roleCards=[["principal","مدير المدرسة","اطلاع ومتابعة وتسجيل لجميع الفئات"],["deputy","النائب الأكاديمي","تقييم جميع المعلمين والمنسقين"],["coord","منسق القسم","زيارة معلمي القسم وتوثيق زيارات الموجه"],["teacher","المعلم","الاطلاع على زياراته والتأمل الذاتي وخطته"]];
-  return `<div class="login">${head}
-  <div class="note" style="margin-bottom:12px">لم تُفعَّل الحسابات بعد. ادخل بصفة المدير أو النائب الأكاديمي، ثم ارفع ملف المستخدمين من: الإعدادات ← المستخدمون والصلاحيات؛ بعدها يصبح الدخول باسم المستخدم وكلمة المرور.</div>
-  <div class="card"><h3 style="margin-bottom:10px">اختر صفتك للدخول</h3>
-  <div class="roles">${roleCards.map(([k,t,d])=>`<button class="role" data-role="${k}" aria-pressed="${LG.role===k}"><b>${t}</b><span>${d}</span></button>`).join("")}</div>
-  ${LG.role?`<div class="fields"><label class="f">الاسم<select id="lg-user">${opts.map(u=>`<option value="${u.key}">${esc(u.name)}${u.deptId?" – "+esc((D(u.deptId)||{}).name):""}</option>`).join("")}</select></label>
-  <label class="f">الرمز السري <input id="lg-pin" type="password" inputmode="numeric" autocomplete="current-password" placeholder="اتركه فارغًا إن لم يُعيَّن"></label></div>
-  <div class="row" style="margin-top:12px"><button class="btn pri" id="lg-go">دخول</button><span class="muted small" id="lg-msg"></span></div>`:""}
-  </div></div>`;
+  return wrap(`<p class="lgx-info" style="margin-top:0">لم تُفعَّل الحسابات بعد. ادخل بصفة المدير أو النائب الأكاديمي، ثم ارفع ملف المستخدمين من: الإعدادات ← المستخدمون والصلاحيات.</p>
+   <p class="small" style="font-weight:700;margin:12px 0 6px">اختر صفتك للدخول</p>
+   <div class="roles lgx-roles">${roleCards.map(([k,t,d])=>`<button class="role" data-role="${k}" aria-pressed="${LG.role===k}"><b>${t}</b><span>${d}</span></button>`).join("")}</div>
+   ${LG.role?`<div class="fields"><label class="f">الاسم<select id="lg-user">${opts.map(u=>`<option value="${u.key}">${esc(u.name)}${u.deptId?" – "+esc((D(u.deptId)||{}).name):""}</option>`).join("")}</select></label>
+   <label class="f">الرمز السري <input id="lg-pin" type="password" inputmode="numeric" autocomplete="current-password" placeholder="اتركه فارغًا إن لم يُعيَّن"></label></div>
+   <button class="btn pri lgx-btn" id="lg-go">دخول</button><span class="muted small" id="lg-msg"></span>`:""}`);
 }
 function bindLogin(){
   const ly=$("#lg-yr"); if(ly) ly.onchange=()=>{ setYear(ly.value); render(); };
