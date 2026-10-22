@@ -399,6 +399,14 @@ function migrate(c){
   const y=c.year||"2026/2027"; const yr={}; YKEYS.forEach(k=>{ if(c[k]!==undefined) yr[k]=c[k]; }); yr.year=y;
   const r={}; Object.keys(c).forEach(k=>{ if(!YKEYS.includes(k)) r[k]=c[k]; }); r.years={[y]:yr}; r.activeYear=y; r.baseYear=y; r.v=2; return r;
 }
+/* توحيد صيغة الصف/الشعبة إلى 7/1 مهما كانت صيغة الإدخال (07/1، 7-1، ثامن-5، الصف السابع / 4…) */
+function secFmt(x){ const s0=String(x==null?"":x).replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/[\u200e\u200f]/g,"").trim(); if(!s0) return "";
+  const t=s0.replace(/[إأآ]/g,"ا").replace(/ة/g,"ه"); const G={"سابع":7,"ثامن":8,"تاسع":9,"عاشر":10,"حادي عشر":11,"ثاني عشر":12}; let g=null; for(const k in G) if(t.includes(k)) g=G[k];
+  const n=(s0.match(/\d+/g)||[]).map(Number);
+  if(g!=null){ const sec=n.find(v=>v>=1&&v<=15&&v!==g)||(n.length>1&&n[0]===g?n[1]:n[0]); return sec&&sec<=15?`${g}/${sec}`:s0; }
+  if(n.length>=2&&n[0]>=1&&n[0]<=12&&n[1]>=1&&n[1]<=15) return `${n[0]}/${n[1]}`; return s0; }
+const secList = a=>[...new Set((a||[]).map(secFmt).filter(Boolean))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+function normVisitsSec(o){ Object.values(o||{}).forEach(v=>{ if(v&&v.section){ const f=secFmt(v.section); if(f!==v.section) v.section=f; } }); return o; }
 const vy = v=>v.year||S.root.baseYear;
 const py = p=>p.year||(S.visits[p.visitId]?vy(S.visits[p.visitId]):S.root.baseYear);
 function VIS(){ return Object.values(S.visits).filter(v=>vy(v)===S.year); }
@@ -407,6 +415,7 @@ function applyYear(){
   const R=S.root; if(Array.isArray(R.th)&&R.th[0]<=4) R.th=[90,80,70]; if(!R.years[S.year]) S.year=R.activeYear;
   const glob={}; Object.keys(R).forEach(k=>{ if(!["years","activeYear","baseYear","v","accounts","perms"].includes(k)) glob[k]=R[k]; });
   S.cfg=Object.assign(clone(DEFAULT_CFG),clone(glob),clone(R.years[S.year])); S.cfg.year=S.year;
+  (S.cfg.depts||[]).forEach(d=>(d.teachers||[]).forEach(t=>{ if(Array.isArray(t.sections)) t.sections=secList(t.sections); }));
 }
 function splitBack(){
   const R=S.root; const yr={}; YKEYS.forEach(k=>{ if(S.cfg[k]!==undefined) yr[k]=clone(S.cfg[k]); }); yr.year=S.year; R.years[S.year]=yr;
@@ -452,10 +461,10 @@ async function copyText(txt,btn){
 /* ============ المخزن (مشترك عبر db أو محلي) ============ */
 const S = { log:[], root: migrate(DEFAULT_CFG), year:"", cfg: clone(DEFAULT_CFG), visits:{}, pd:{}, mode:"local", user:null, view:"dash", arg:null, ready:false, db:null, dl:null, cfgFromStore:false };
 const LKEY="hamza-visits-v1";
-function loadLocal(){ const d=lsGet(LKEY,null); if(d){ if(d.cfg){S.root=migrate(d.cfg);S.cfgFromStore=true;} S.visits=d.visits||{}; S.pd=d.pd||{}; S.log=d.log||[]; } S.year=lsGet("hamza-year",null)||S.root.activeYear; applyYear(); }
+function loadLocal(){ const d=lsGet(LKEY,null); if(d){ if(d.cfg){S.root=migrate(d.cfg);S.cfgFromStore=true;} S.visits=normVisitsSec(d.visits||{}); S.pd=d.pd||{}; S.log=d.log||[]; } S.year=lsGet("hamza-year",null)||S.root.activeYear; applyYear(); }
 function saveLocal(){ if(S.mode!=="local") return; if(!lsSet(LKEY,{cfg:S.cfgFromStore?S.root:null,visits:S.visits,pd:S.pd,log:S.log})) toast("تعذّر الحفظ في هذا المتصفح – صدّر نسخة احتياطية"); }
 async function put(kind,obj){
-  obj.updatedAt=new Date().toISOString(); if(!obj.year) obj.year=S.year;
+  obj.updatedAt=new Date().toISOString(); if(!obj.year) obj.year=S.year; if(kind==="visits"&&obj.section) obj.section=secFmt(obj.section);
   S[kind][obj.id]=obj;
   if(S.mode==="fb"){ if(kind==="visits"){ obj.tv=(obj.status==="closed"||obj.status==="sent")&&obj.purpose!=="calib"; if(!obj.recordedByUid&&obj.recordedBy===S.user.key&&FB.udoc) obj.recordedByUid=FB.udoc.uid; }
     try{ await FB.db.collection(kind).doc(obj.id).set(clone(obj)); }catch(e){ toast(fbErr(e)); throw e; } }
@@ -495,7 +504,7 @@ async function initStore(){
     S.db=db; S.mode="db"; S.visits={}; S.pd={}; S.root=migrate(DEFAULT_CFG); applyYear(); S.cfgFromStore=false;
     db.doc("cfg/main").onSnapshot(s=>{ if(s.exists){ S.root=migrate(s.data()); S.cfgFromStore=true; if(!S.root.years[S.year]) S.year=lsGet("hamza-year",null)||S.root.activeYear; applyYear(); if(S.user){const u=users().find(x=>x.key===S.user.key); if(u) S.user=u;} } softRerender(); },e=>{});
     try{ db.collection("log").orderBy("t","desc").limit(500).onSnapshot(snap=>{ S.log=snap.docs.map(d=>clone(d.data())); },e=>{}); }catch(_){}
-    ["visits","pd"].forEach(k=>db.collection(k).onSnapshot(snap=>{ const o={}; snap.docs.forEach(d=>{o[d.id]=clone(d.data())}); S[k]=o; softRerender(); },e=>{}));
+    ["visits","pd"].forEach(k=>db.collection(k).onSnapshot(snap=>{ const o={}; snap.docs.forEach(d=>{o[d.id]=clone(d.data())}); S[k]=k==="visits"?normVisitsSec(o):o; softRerender(); },e=>{}));
     render();
   }catch(e){ /* يبقى الوضع المحلي */ }
 }
@@ -610,7 +619,7 @@ function fbInit(){
 }
 function fbSubscribe(){
   const d=FB.udoc; const role=d.role; const full=["admin","principal","deputy"].includes(role);
-  const snapTo=k=>snap=>{ const o={}; snap.docs.forEach(x=>{o[x.id]=x.data();}); S[k]=o; softRerender(); };
+  const snapTo=k=>snap=>{ const o={}; snap.docs.forEach(x=>{o[x.id]=x.data();}); S[k]=k==="visits"?normVisitsSec(o):o; softRerender(); };
   const err=e=>toast(fbErr(e));
   let qv=FB.db.collection("visits"), qp=FB.db.collection("pd");
   if(role==="coord"){ qv=qv.where("deptId","==",d.deptId||"-"); qp=qp.where("deptId","==",d.deptId||"-"); }
@@ -2354,7 +2363,7 @@ function readSettings(){
   $$(".s-dname").forEach(e=>c.depts[e.dataset.d].name=e.value); $$(".s-dcoord").forEach(e=>c.depts[e.dataset.d].coordEmail=e.value);
   $$(".s-sup").forEach(e=>c.depts[e.dataset.d].supervisor.name=e.value); $$(".s-supe").forEach(e=>c.depts[e.dataset.d].supervisor.email=e.value.trim());
   $$(".s-tname").forEach(e=>c.depts[e.dataset.d].teachers[e.dataset.t].name=e.value); $$(".s-temail").forEach(e=>c.depts[e.dataset.d].teachers[e.dataset.t].email=e.value.trim().toLowerCase());
-  $$(".s-tsec").forEach(e=>c.depts[e.dataset.d].teachers[e.dataset.t].sections=e.value.split(/[،,\s]+/).map(s=>s.trim()).filter(Boolean));
+  $$(".s-tsec").forEach(e=>c.depts[e.dataset.d].teachers[e.dataset.t].sections=secList(e.value.split(/[،,;\s]+/).map(s=>s.trim()).filter(Boolean)));
 }
 function yearsCard(){
   const R=S.root; const ys=Object.keys(R.years).sort().reverse(); const all=Object.values(S.visits);
@@ -2403,7 +2412,7 @@ function staffFromRows(rows){
   rows.forEach(r=>{ const dn=String(r[kD]||"").trim(), nm=String(r[kN]||"").replace(/\s+/g," ").trim(); if(!dn||!nm) return;
     const em=String(kE?r[kE]:"").trim().toLowerCase(); const sec=String(kS?r[kS]:"").trim(); const isC=kC&&/نعم|yes|✓|1|x/i.test(String(r[kC]||""));
     const dk=normAr(dn); if(!out.has(dk)) out.set(dk,{name:dn,teachers:new Map(),coordEmail:""}); const d=out.get(dk);
-    const tk=em||normAr(nm); if(!d.teachers.has(tk)) d.teachers.set(tk,{name:nm,email:em,sections:new Set()}); if(sec) d.teachers.get(tk).sections.add(sec.replace(/^0/,""));
+    const tk=em||normAr(nm); if(!d.teachers.has(tk)) d.teachers.set(tk,{name:nm,email:em,sections:new Set()}); if(sec) d.teachers.get(tk).sections.add(secFmt(sec));
     if(isC) d.coordEmail=em; });
   return out;
 }
@@ -2920,7 +2929,7 @@ function impVisitorName(role,name,teacherId){ const n=String(name||"").replace(/
   if(!n){ if(role==="principal") return S.cfg.principal.name||""; if(role==="deputy"&&S.cfg.deputies.length===1) return S.cfg.deputies[0].name; if(role==="coord"&&teacherId){ const t=T(teacherId); const c=t&&coordOf(D(t.deptId)); if(c) return c.name; } if(role==="sup"&&teacherId){ const t=T(teacherId); const d=t&&D(t.deptId); if(d&&d.supervisor&&d.supervisor.name) return d.supervisor.name; } return ""; }
   const kn=impKnownVisitors(role); const m=kn.find(c=>nameMatch(c,n)||nkl(c)===nkl(n)); if(m) return m;
   const sc=kn.map(c=>({c,s:nameSim(c,n)})).sort((a,b)=>b.s-a.s); if(sc[0]&&sc[0].s>=0.7&&(!sc[1]||sc[0].s-sc[1].s>=0.08)) return sc[0].c; const tm=kn.filter(c=>c&&tokMatch(c,n)); if(tm.length===1) return tm[0]; return n; }
-const secKey = s=>{ const t=normAr(s||""); const g={"سابع":7,"ثامن":8,"تاسع":9,"عاشر":10}; let gr=""; for(const k in g) if(t.includes(k)) gr=g[k]; const n=(t.match(/\d+/g)||[]); return gr?gr+"-"+(n[0]||""):n.join("-"); };
+const secKey = s=>{ const t=normAr(s||""); const g={"سابع":7,"ثامن":8,"تاسع":9,"عاشر":10}; let gr=""; for(const k in g) if(t.includes(k)) gr=g[k]; const n=(t.match(/\d+/g)||[]).map(x=>String(+x)); return gr?gr+"-"+(n.find(x=>+x!==gr)||n[0]||""):n.join("-"); };
 const impKey = r=>[r.teacherId,r.date].join("|");
 const impSame = (a,b)=>{ const pa=nkl(a.period), pb=nkl(b.period); if(pa&&pb&&pa!==pb) return false; const sa=secKey(a.section), sb=secKey(b.section); if(sa&&sb&&sa!==sb) return false; return true; };
 function impRows(){ // يبني صفوف المراجعة من الملفات الخام + تعديلات المستخدم
@@ -2928,7 +2937,7 @@ function impRows(){ // يبني صفوف المراجعة من الملفات ا
     let vRole=e.vRole!==undefined?e.vRole:roleFromText(r.vrText); if(!vRole&&e.vRole===undefined){ const h=roleFromText(r.path||r.file); if(h) vRole=h; }
     if(!vRole&&e.vRole===undefined&&r.vName){ for(const k of ["principal","deputy","coord","sup"]){ const kn=impKnownVisitors(k); const nm=String(r.vName); if(kn.some(c=>c&&(nameMatch(c,nm)||nkl(c)===nkl(nm)||nameSim(c,nm)>=0.7||tokMatch(c,nm)))){ vRole=k; break; } } }
     const vName=e.vName!==undefined?e.vName:impVisitorName(vRole,r.vName,teacherId);
-    return Object.assign({},r,{teacherId,cands:tm.cands,vRole,vName,date:e.date||r.date,period:e.period!==undefined?e.period:r.period,srcs:[r.src],files:[r.file],merged:false}); });
+    return Object.assign({},r,{section:secFmt(r.section),teacherId,cands:tm.cands,vRole,vName,date:e.date||r.date,period:e.period!==undefined?e.period:r.period,srcs:[r.src],files:[r.file],merged:false}); });
   // دمج الإكسل مع PDF لنفس الزيارة (المعلم + التاريخ + الحصة)
   const byKey={}; const out=[];
   rows.forEach(r=>{ if(!r.teacherId||!r.date){ out.push(r); return; } const k=impKey(r); const lst=byKey[k]=byKey[k]||[]; const a=lst.find(x=>impSame(x,r)&&!(x.vRole&&r.vRole&&x.vRole!==r.vRole));
@@ -2979,7 +2988,7 @@ function impToVisit(r,batch){ const t=T(r.teacherId); const now=new Date().toISO
   const own=["principal","deputy","coord"].includes(r.vRole);
   const acct=own?users().find(u=>u.role!=="teacher"&&(nameMatch(u.name,r.vName)||nkl(u.name)===nkl(r.vName))):null;
   const at=r.date+"T12:00:00.000Z";
-  const v={id:uid(),year:S.year,status:IMV.opt.status,date:r.date,period:r.period||"",section:r.section||"",topic:r.topic||"",mode:r.mode||MODES[0],purpose:r.vRole==="peer"?"peer":"eval",
+  const v={id:uid(),year:S.year,status:IMV.opt.status,date:r.date,period:r.period||"",section:secFmt(r.section||""),topic:r.topic||"",mode:r.mode||MODES[0],purpose:r.vRole==="peer"?"peer":"eval",
     visitorRole:r.vRole,visitorName:r.vName||"",recordedBy:acct?acct.key:"imp",recordedByName:own?r.vName:"",teacherId:r.teacherId,deptId:t.deptId,ratings,pdr:{},focus:[],
     strengths:r.strengths||"",devs:r.devs||"",action:"",general:[r.general||"",r.note?(r.note.length>40?r.note:"ملاحظات الزيارة: "+r.note):""].filter(Boolean).join("\n"),sv:2,conf:{date:"",pre:false,notes:""},reflection:"",tot:["","",""],totN:"",follow:{},nextDate:"",
     createdAt:at,closedAt:at,imp:{batch,src:r.srcs.join("+"),file:r.files.join("، ").slice(0,300),oldScore:r.oldScore==null?null:Math.round(r.oldScore*10)/10,at:now,by:S.user.name}};
