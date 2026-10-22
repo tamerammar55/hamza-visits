@@ -352,7 +352,7 @@ const IND = BANK.items.map((x,i)=>({i, sci:x.d==="الجانب العملي", d:
 IND.forEach(x=>{ if(!x.s) x.s = x.t.replace(/\.\s*$/,"") + " بصورة فاعلة."; });
 /* مجال «الجانب العملي» يظهر لزيارات قسم العلوم فقط */
 const NB = IND.filter(x=>!x.sci).length;
-const SCI_RX = /علوم/;
+const SCI_RX = /(^|\s)(ال)?علوم(\s|$)/;
 function vSci(v){ if(!v) return false; if(Object.keys(v.ratings||{}).some(k=>+k>=NB&&((v.ratings[k]||{}).l!=null))) return true; const t=v.teacherId?T(v.teacherId):null; const d=D(v.deptId||(t&&t.deptId))||{}; return SCI_RX.test(d.name||(t&&t.dept)||""); }
 const INDV = v=>vSci(v)?IND:IND.filter(x=>!x.sci);
 const DOMV = v=>vSci(v)?DOMAINS:DOMAINS.slice(0,4);
@@ -2884,7 +2884,7 @@ function impRows(){ // يبني صفوف المراجعة من الملفات ا
     return Object.assign({},r,{teacherId,cands:tm.cands,vRole,vName,date:e.date||r.date,period:e.period!==undefined?e.period:r.period,srcs:[r.src],files:[r.file],merged:false}); });
   // دمج الإكسل مع PDF لنفس الزيارة (المعلم + التاريخ + الحصة)
   const byKey={}; const out=[];
-  rows.forEach(r=>{ if(!r.teacherId||!r.date){ out.push(r); return; } const k=impKey(r); const lst=byKey[k]=byKey[k]||[]; const a=lst.find(x=>impSame(x,r));
+  rows.forEach(r=>{ if(!r.teacherId||!r.date){ out.push(r); return; } const k=impKey(r); const lst=byKey[k]=byKey[k]||[]; const a=lst.find(x=>impSame(x,r)&&!(x.vRole&&r.vRole&&x.vRole!==r.vRole));
     if(!a){ lst.push(r); out.push(r); return; }
     if(a.src===r.src){ r.dup=true; out.push(r); return; }
     const PR={excel:3,word:2,pdf:1}; const [base,other]=(PR[a.src]||0)>=(PR[r.src]||0)?[a,r]:[r,a];
