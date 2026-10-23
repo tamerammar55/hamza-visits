@@ -2141,6 +2141,7 @@ function impactView(){
 }
 function bindImpact(){
   const f=$("#im-file"); if(f) f.onchange=async e=>{ const file=e.target.files[0]; e.target.value=""; if(!file) return; const as=$("#im-as").value; const mx=+$("#im-max").value||null;
+    if(/\.(pdf|png|jpe?g|webp|docx?)$/i.test(file.name)){ toast("هذا ملف تقرير (PDF/صورة) لا يحتوي درجات قابلة للقراءة. ارفع ملف الإكسل الذي رُفع لمنصة تحليل الدرجات (ملف الرصد) أو ملفًا مجمّعًا بأعمدة: المادة · الشعبة · المتوسط · نسبة النجاح."); return; }
     try{ const book=resultsFromBook(await readAllSheets(file),mx); const rows=book.rows; const tids=new Set(); rows.forEach(r=>allTeachers().filter(t=>t.deptId===r.deptId&&(t.sections||[]).map(normSection).includes(r.section)).forEach(t=>tids.add(t.id)));
       S.cfg.results=Object.assign({},S.cfg.results||{},{[as]:{rows,at:new Date().toISOString(),file:file.name}}); await saveCfg(); logAct("رفع نتائج الطلاب",`${as} – ${rows.length} شعبة×مادة`); IMP.assess=as;
       toast(`تم من ${book.used.length>1?book.used.length+" أوراق":"ورقة «"+book.used[0]+"»"}: ${rows.length} شعبة×مادة، ارتبطت بـ${tids.size} معلمًا`); render(); }catch(err){ toast(err.message||"تعذّرت قراءة الملف"); } };
