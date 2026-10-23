@@ -2084,7 +2084,13 @@ function resultsFromRows(rows,maxIn){
   const kAvg=find("المتوسط","التحصيل","نسبه التحصيل","average"); const kPass=find("نسبه النجاح","النجاح","pass"); const kN=find("عدد الطلاب","المختبرون","العدد");
   if(!kSec) throw new Error("لم أجد عمود الشعبة في الملف.");
   const out={};
-  if(kSub&&kAvg){ // ملف مجمّع: مادة × شعبة
+  const kPct=find("النسبه %","النسبه","percent"), kTier=find("التصنيف","الحاله");
+  if(kSub&&kPct&&!kAvg){ // ورقة «تصنيف الطلاب» من منصة تحليل الدرجات: صف لكل طالب في كل مادة
+    rows.forEach(r=>{ const d=deptForSubject(r[kSub]); const sec=normSection(r[kSec]); const v=parseFloat(String(r[kPct]).replace("%","")); if(!d||!sec||isNaN(v)) return;
+      const k=d.id+"|"+sec; const o=out[k]=out[k]||{deptId:d.id,section:sec,_s:0,_p:0,n:0};
+      const fail=kTier?/راسب/.test(String(r[kTier])):v<50; o._s+=v; o._p+=fail?0:1; o.n++; });
+    Object.values(out).forEach(o=>{ o.avg=o._s/o.n; o.pass=o._p/o.n*100; delete o._s; delete o._p; });
+  } else if(kSub&&kAvg){ // ملف مجمّع: مادة × شعبة
     rows.forEach(r=>{ const d=deptForSubject(r[kSub]); const sec=normSection(r[kSec]); const a=parseFloat(String(r[kAvg]).replace("%","")); if(!d||!sec||isNaN(a)) return;
       const p=kPass?parseFloat(String(r[kPass]).replace("%","")):null; out[d.id+"|"+sec]={deptId:d.id,section:sec,avg:a<=1?a*100:a,pass:p==null||isNaN(p)?null:(p<=1?p*100:p),n:kN?(+r[kN]||null):null}; });
   } else { // ملف طلاب عريض: عمود لكل مادة
@@ -2103,10 +2109,11 @@ async function readAllSheets(file){
   const wb=XLSX.read(buf,{type:"array"}); return wb.SheetNames.map(n=>({name:n,rows:XLSX.utils.sheet_to_json(wb.Sheets[n],{defval:"",raw:false})})).filter(x=>x.rows.length);
 }
 function resultsFromBook(sheets,maxIn){ // يجرّب كل الأوراق: المجمّعة أولًا ثم ملفات الطلاب، ويدمج النتائج
-  const agg=[], wide=[], errs=[];
-  sheets.forEach(sh=>{ try{ const keys=Object.keys(sh.rows[0]||{}).map(normAr); const isAgg=keys.some(k=>k.includes("الماده"))&&keys.some(k=>/المتوسط|التحصيل|average/.test(k));
-    const r=resultsFromRows(sh.rows,maxIn); (isAgg?agg:wide).push({name:sh.name,r}); }catch(e){ errs.push(sh.name); } });
-  const pick=agg.length?agg:wide; if(!pick.length) throw new Error("لم أتعرّف على أي ورقة في الملف. المطلوب: عمود الشعبة مع عمود لكل مادة، أو الأعمدة: المادة · الشعبة · المتوسط (أو نسبة التحصيل) · نسبة النجاح.");
+  const agg=[], long=[], wide=[], errs=[];
+  sheets.forEach(sh=>{ try{ const keys=Object.keys(sh.rows[0]||{}).map(normAr); const hasSub=keys.some(k=>k.includes("الماده"));
+    const isAgg=hasSub&&keys.some(k=>/المتوسط|التحصيل|average/.test(k)); const isLong=hasSub&&!isAgg&&keys.some(k=>k.includes("النسبه"));
+    const r=resultsFromRows(sh.rows,maxIn); (isAgg?agg:isLong?long:wide).push({name:sh.name,r}); }catch(e){ errs.push(sh.name); } });
+  const pick=long.length?long:agg.length?agg:wide; if(!pick.length) throw new Error("لم أتعرّف على أي ورقة في الملف. المطلوب: عمود الشعبة مع عمود لكل مادة، أو الأعمدة: المادة · الشعبة · المتوسط (أو نسبة التحصيل) · نسبة النجاح.");
   const out={}; pick.forEach(x=>x.r.forEach(o=>{ out[o.deptId+"|"+o.section]=o; })); return {rows:Object.values(out),used:pick.map(x=>x.name)};
 }
 function resultsOf(assess){ return ((S.cfg.results||{})[assess]||{}).rows||[]; }
@@ -2127,7 +2134,7 @@ function impactView(){
   const xs=rows.map(x=>x.a.avg), ys=rows.map(x=>x.r.avg); const r=pearson(xs,ys); const mY=ys.length?ys.reduce((a,b)=>a+b,0)/ys.length:null;
   const dr=[0,1,2,3].map(i=>{ const pr=rows.map(x=>({d:domAvg(x.a.vs,i),y:x.r.avg})).filter(o=>o.d!=null); return pearson(pr.map(o=>o.d),pr.map(o=>o.y)); });
   const q=x=>{ const hp=x.a.avg>=S.cfg.th[1], hr=x.r.avg>=mY; return hp&&hr?["ممارسات قوية · نتائج مرتفعة","lv1"]:hp?["ممارسات قوية · نتائج أقل","lv3"]:hr?["ممارسات تحتاج دعمًا · نتائج مرتفعة","lv2"]:["أولوية دعم","lv4"]; };
-  return `${canUp?`<div class="card" style="margin-bottom:14px"><div class="row" style="justify-content:space-between"><div><h3>نتائج الطلاب للعام ${esc(S.year)}</h3><p class="muted small" style="margin:2px 0 0">ارفع ملف الرصد نفسه المستخدم في منصة تحليل الدرجات (عمود الشعبة + عمود لكل مادة)، أو ملفًا مجمّعًا بالأعمدة: المادة · الشعبة · المتوسط · نسبة النجاح. تُربط كل شعبة بمعلمها من كادر العام.</p></div>
+  return `${canUp?`<div class="card" style="margin-bottom:14px"><div class="row" style="justify-content:space-between"><div><h3>نتائج الطلاب للعام ${esc(S.year)}</h3><p class="muted small" style="margin:2px 0 0">ارفع ملف Excel المصدَّر من منصة تحليل الدرجات («تصدير Excel» أو «تحليل الدرجات - جميع البيانات») لنفس الاختبار، أو ملف الرصد نفسه، أو ملفًا مجمّعًا بالأعمدة: المادة · الشعبة · المتوسط · نسبة النجاح. تُربط كل شعبة بمعلمها من كادر العام.</p></div>
    <div class="row"><select id="im-as">${ASSESS.map(a=>`<option>${a}</option>`).join("")}</select><label class="f" style="flex-direction:row;align-items:center;gap:6px;font-weight:600">الدرجة القصوى<input id="im-max" type="number" min="1" placeholder="تلقائي" style="width:90px"></label><label class="btn gold" style="cursor:pointer">رفع ملف النتائج<input type="file" id="im-file" accept=".xlsx,.xls,.xlsm,.csv" hidden></label></div></div>
    <div class="row small" style="margin-top:8px">${ASSESS.map(a=>{ const n=resultsOf(a).length; return `<span class="chip st ${n?"st-sent":"st-draft"}">${a}: ${n?n+" شعبة×مادة":"غير مرفوع"}${n?` <button class="btn sm ghost" data-im-del="${a}" style="padding:0 6px">حذف</button>`:""}</span>`; }).join("")}</div></div>`:""}
   ${!loaded.length?`<div class="empty">لم تُرفع نتائج للطلاب بعد لهذا العام.</div>`:`
@@ -2141,7 +2148,7 @@ function impactView(){
 }
 function bindImpact(){
   const f=$("#im-file"); if(f) f.onchange=async e=>{ const file=e.target.files[0]; e.target.value=""; if(!file) return; const as=$("#im-as").value; const mx=+$("#im-max").value||null;
-    if(/\.(pdf|png|jpe?g|webp|docx?)$/i.test(file.name)){ toast("هذا ملف تقرير (PDF/صورة) لا يحتوي درجات قابلة للقراءة. ارفع ملف الإكسل الذي رُفع لمنصة تحليل الدرجات (ملف الرصد) أو ملفًا مجمّعًا بأعمدة: المادة · الشعبة · المتوسط · نسبة النجاح."); return; }
+    if(/\.(pdf|png|jpe?g|webp|docx?)$/i.test(file.name)){ toast("هذا ملف تقرير (PDF/صورة) لا يحتوي درجات قابلة للقراءة. ارفع ملف Excel المصدَّر من منصة تحليل الدرجات («تصدير Excel») أو ملف الرصد، أو ملفًا مجمّعًا بأعمدة: المادة · الشعبة · المتوسط · نسبة النجاح."); return; }
     try{ const book=resultsFromBook(await readAllSheets(file),mx); const rows=book.rows; const tids=new Set(); rows.forEach(r=>allTeachers().filter(t=>t.deptId===r.deptId&&(t.sections||[]).map(normSection).includes(r.section)).forEach(t=>tids.add(t.id)));
       S.cfg.results=Object.assign({},S.cfg.results||{},{[as]:{rows,at:new Date().toISOString(),file:file.name}}); await saveCfg(); logAct("رفع نتائج الطلاب",`${as} – ${rows.length} شعبة×مادة`); IMP.assess=as;
       toast(`تم من ${book.used.length>1?book.used.length+" أوراق":"ورقة «"+book.used[0]+"»"}: ${rows.length} شعبة×مادة، ارتبطت بـ${tids.size} معلمًا`); render(); }catch(err){ toast(err.message||"تعذّرت قراءة الملف"); } };
