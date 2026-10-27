@@ -1710,6 +1710,17 @@ ${v.visitorName}
 ${S.cfg.school}`;
   return {to,cc,subject,body};
 }
+/* ===== البريد على الجوال: ملف .eml لا يفتح في تطبيق Outlook على iOS/Android ===== */
+const IS_IOS=/iPhone|iPad|iPod/i.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+const IS_MOBILE=IS_IOS||/Android|Mobi/i.test(navigator.userAgent);
+function appMailUrl(to,cc,subject,body){ const enc=encodeURIComponent; // iOS: تطبيق Outlook مباشرة · Android: قائمة تطبيقات البريد (اختر Outlook)
+  if(IS_IOS) return `ms-outlook://compose?to=${enc(to.join(","))}${cc.length?`&cc=${enc(cc.join(","))}`:""}&subject=${enc(subject)}&body=${enc(body)}`;
+  return `mailto:${to.map(enc).join(",")}?${cc.length?`cc=${enc(cc.join(","))}&`:""}subject=${enc(subject)}&body=${enc(body)}`; }
+async function shareVisitMobile(v,pdfP){ const m=mailParts(v); const addr=[...m.to,...m.cc].join("; ");
+  try{ if(addr&&navigator.clipboard) await navigator.clipboard.writeText(addr).catch(()=>{}); const f=await pdfP;
+    if(!(navigator.canShare&&navigator.canShare({files:[f]}))){ toast("المشاركة بالملفات غير مدعومة هنا؛ استخدم «فتح الرسالة في Outlook» ثم أرفق الاستمارة"); return false; }
+    await navigator.share({files:[f],title:m.subject,text:m.body}); toast(addr?"نُسخت عناوين المستلمين – الصقها في خانة «إلى» في Outlook":"تمت المشاركة"); return true; }
+  catch(e){ if(e&&e.name==="NotAllowedError"){ toast("اضغط الزر مرة أخرى (اكتمل تجهيز الملف)"); return false; } if(e&&e.name!=="AbortError") toast(e.message||"تعذّرت المشاركة"); return false; } }
 function sendDialog(v){
   const m=mailParts(v); const enc=encodeURIComponent;
   const outlook=`https://outlook.office.com/mail/deeplink/compose?to=${enc(m.to.join(";"))}&cc=${enc(m.cc.join(";"))}&subject=${enc(m.subject)}&body=${enc(m.body)}`;
@@ -1719,9 +1730,15 @@ function sendDialog(v){
   modal("إرسال تقرير الزيارة مع الاستمارة",`${hasTo?"":'<p class="note">لا يوجد بريد إلكتروني مسجّل لهذا المعلم؛ أضفه من الإعدادات.</p>'}
    <div class="fields"><label class="f">إلى (المعلم)<input readonly value="${esc(m.to.join("; ")||"—")}" dir="ltr"></label><label class="f">نسخة (منسق القسم)<input readonly value="${esc(m.cc.join("; ")||"—")}" dir="ltr"></label></div>
    <label class="f" style="margin-top:8px">الموضوع<input readonly value="${esc(m.subject)}"></label>
+   ${IS_MOBILE?`<div class="card" style="margin-top:12px;border-color:var(--gold)"><b>الإرسال من الجوال عبر تطبيق Outlook</b>
+    <p class="small muted" style="margin:4px 0 8px"><b>الطريقة الأولى (مع المرفق):</b> اضغط الزر ثم اختر <b>Outlook</b> من قائمة المشاركة؛ تُفتح رسالة جديدة فيها الاستمارة PDF ونص التقرير. عناوين المستلمين تُنسخ تلقائيًا، فالصقها في خانة «إلى».</p>
+    <div class="row"><button class="btn pri" id="sd-mshare">إرسال عبر Outlook مع الاستمارة</button></div>
+    <p class="small muted" style="margin:10px 0 8px"><b>الطريقة الثانية (المستلمون جاهزون):</b> تُفتح رسالة في ${IS_IOS?"تطبيق Outlook":"تطبيق البريد (اختر Outlook)"} فيها المستلمون والموضوع والنص، ثم أرفق الاستمارة من 📎 بعد حفظها.</p>
+    <div class="row"><a class="btn" id="sd-mapp" href="${esc(appMailUrl(m.to,m.cc,m.subject,m.body))}">فتح الرسالة في Outlook</a><button class="btn" id="sd-pdf">حفظ الاستمارة PDF</button><button class="btn ghost" id="sd-copyto2">نسخ العناوين</button></div></div>
+   <details style="margin-top:12px"><summary class="small" style="cursor:pointer;font-weight:700">خيارات الحاسوب</summary><div class="row" style="margin-top:8px"><button class="btn" id="sd-eml">رسالة Outlook جاهزة (.eml)</button><button class="btn" id="sd-word">Word</button></div></details>`:`
    <div class="card" style="margin-top:12px;border-color:var(--gold)"><b>الطريقة الموصى بها: رسالة Outlook جاهزة والاستمارة مرفقة</b>
     <p class="small muted" style="margin:4px 0 8px">يُنزَّل ملف رسالة (.eml) فيه المستلمون والموضوع ونص منسّق، والاستمارة مرفقة بصيغة PDF بالشعارات. افتحه بنقرة مزدوجة فيظهر في Outlook كرسالة جديدة، ثم اضغط «إرسال».</p>
-    <div class="row"><button class="btn pri" id="sd-eml">رسالة Outlook جاهزة بالمرفق</button><button class="btn" id="sd-share">مشاركة الاستمارة…</button><button class="btn" id="sd-pdf">تنزيل الاستمارة PDF</button><button class="btn" id="sd-word">Word</button></div></div>
+    <div class="row"><button class="btn pri" id="sd-eml">رسالة Outlook جاهزة بالمرفق</button><button class="btn" id="sd-share">مشاركة الاستمارة…</button><button class="btn" id="sd-pdf">تنزيل الاستمارة PDF</button><button class="btn" id="sd-word">Word</button></div></div>`}
    <details style="margin-top:12px"><summary class="small" style="cursor:pointer;font-weight:700">طرق بديلة (البريد على الويب – يُرفق الملف يدويًا)</summary>
     <div class="row" style="margin-top:8px"><a class="btn" href="${esc(outlook)}" target="_blank" rel="noopener">Outlook على الويب</a><a class="btn" href="${esc(gmail)}" target="_blank" rel="noopener">Gmail</a><a class="btn ghost" href="${esc(mailto)}">برنامج البريد</a><button class="btn" id="sd-copy">نسخ النص</button><button class="btn" id="sd-copyto">نسخ العناوين</button></div>
     <p class="small muted" style="margin:6px 0 0">في هذه الطرق نزّل الاستمارة أولًا ثم أرفقها في الرسالة قبل الإرسال.</p></details>
@@ -1729,7 +1746,12 @@ function sendDialog(v){
    [{t:"حفظ حالة الإرسال",cls:"pri",fn:async bg=>{ const sent=$("#sd-sent",bg).checked; const vv=S.visits[v.id]; if(!vv) return; if(sent&&vv.status!=="sent"){vv.status="sent";vv.sentAt=new Date().toISOString();await put("visits",vv);logAct("تسجيل إرسال زيارة",(T(vv.teacherId)||{}).name);toast("سُجّلت الزيارة كمُرسلة");render();} else if(!sent&&vv.status==="sent"){vv.status="closed";delete vv.sentAt;await put("visits",vv);render();} }}]);
   $("#sd-copy").onclick=()=>copyText(m.body); $("#sd-copyto").onclick=()=>copyText([...m.to,...m.cc].join("; ")); $("#sd-word").onclick=()=>wordDoc(v); $("#sd-pdf").onclick=()=>downloadVisitPdf(v);
   $("#sd-eml").onclick=()=>{ emlDownload(v); const c=$("#sd-sent"); if(c) c.checked=true; };
-  const sh=$("#sd-share"); if(!(navigator.canShare)) sh.hidden=true; sh.onclick=()=>shareWithFile(v);
+  const sh=$("#sd-share"); if(sh){ if(!(navigator.canShare)) sh.hidden=true; sh.onclick=()=>shareWithFile(v); }
+  if(IS_MOBILE){ // تجهيز الـPDF مسبقًا: المشاركة على iOS تتطلب أن تتم فور الضغط
+    const pdfP=visitPdf(v).then(pdf=>new File([pdf.output("blob")],fileBase(v)+".pdf",{type:"application/pdf"})); pdfP.catch(()=>{});
+    const ms=$("#sd-mshare"); ms.onclick=async()=>{ if(await shareVisitMobile(v,pdfP)){ const c=$("#sd-sent"); if(c) c.checked=true; } };
+    $("#sd-mapp").addEventListener("click",()=>{ const c=$("#sd-sent"); if(c) c.checked=true; });
+    $("#sd-copyto2").onclick=()=>copyText([...m.to,...m.cc].join("; ")); }
 }
 function bindVisit(){
   bindCommon(); const v=S.visits[S.arg]; if(!v) return;
@@ -2018,10 +2040,10 @@ function mailBox({title,to,cc,subject,html,text,attach,onDone}){
    <div class="fields"><label class="f">إلى<input readonly dir="ltr" value="${esc(to.join("; ")||"—")}"></label><label class="f">نسخة<input readonly dir="ltr" value="${esc(cc.join("; ")||"—")}"></label></div>
    <label class="f" style="margin-top:8px">الموضوع<input readonly value="${esc(subject)}"></label>
    <div class="form-sheet" style="margin-top:8px;max-height:260px;overflow:auto">${html}</div>
-   <div class="row" style="margin-top:10px"><button class="btn pri" id="mb-eml">رسالة Outlook جاهزة</button><a class="btn" href="${esc(outlook)}" target="_blank" rel="noopener">Outlook على الويب</a><button class="btn" id="mb-copy">نسخ النص</button></div>
+   <div class="row" style="margin-top:10px">${IS_MOBILE?`<a class="btn pri" id="mb-app" href="${esc(appMailUrl(to,cc,subject,text))}">فتح الرسالة في Outlook</a>`:""}<button class="btn ${IS_MOBILE?"":"pri"}" id="mb-eml">رسالة Outlook جاهزة</button><a class="btn" href="${esc(outlook)}" target="_blank" rel="noopener">Outlook على الويب</a><button class="btn" id="mb-copy">نسخ النص</button></div>
    <label class="row small" style="margin-top:10px"><input type="checkbox" id="mb-done" style="width:auto"> تم الإرسال (يُسجَّل تاريخ التذكير)</label>`,
    [{t:"حفظ",cls:"pri",fn:async bg=>{ if($("#mb-done",bg).checked&&onDone){ await onDone(); } }}]);
-  $("#mb-copy",bg).onclick=()=>copyText(text);
+  $("#mb-copy",bg).onclick=()=>copyText(text); const ma=$("#mb-app",bg); if(ma) ma.addEventListener("click",()=>{ $("#mb-done",bg).checked=true; });
   $("#mb-eml",bg).onclick=async()=>{ const bnd="----=_HamzaFU_"+uid(); const parts=[`To: ${to.join(", ")}`, cc.length?`Cc: ${cc.join(", ")}`:null, `Subject: ${encH(subject)}`,"X-Unsent: 1","MIME-Version: 1.0",`Content-Type: multipart/mixed; boundary="${bnd}"`,"",`--${bnd}`,"Content-Type: text/html; charset=UTF-8","Content-Transfer-Encoding: base64","",wrap76(b64u(`<html dir="rtl"><head><meta charset="utf-8"></head><body dir="rtl">${html}</body></html>`))];
     if(attach){ parts.push(`--${bnd}`,`Content-Type: ${attach.mime}; name="${encH(attach.name)}"`,"Content-Transfer-Encoding: base64",`Content-Disposition: attachment; filename="${encH(attach.name)}"`,"",wrap76(attach.b64)); }
     parts.push(`--${bnd}--`,""); await saveFile(fsafe(subject).slice(0,60)+".eml",parts.filter(x=>x!==null).join("\r\n"),"message/rfc822"); $("#mb-done",bg).checked=true; };
