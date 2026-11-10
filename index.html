@@ -413,13 +413,13 @@ function VIS(){ return Object.values(S.visits).filter(v=>vy(v)===S.year); }
 function PDS(){ return Object.values(S.pd).filter(p=>py(p)===S.year); }
 function applyYear(){
   const R=S.root; if(Array.isArray(R.th)&&R.th[0]<=4) R.th=[90,80,70]; if(!R.years[S.year]) S.year=R.activeYear;
-  const glob={}; Object.keys(R).forEach(k=>{ if(!["years","activeYear","baseYear","v","accounts","perms"].includes(k)) glob[k]=R[k]; });
+  const glob={}; Object.keys(R).forEach(k=>{ if(!["years","activeYear","baseYear","v","accounts","perms","userCaps"].includes(k)) glob[k]=R[k]; });
   S.cfg=Object.assign(clone(DEFAULT_CFG),clone(glob),clone(R.years[S.year])); S.cfg.year=S.year;
   (S.cfg.depts||[]).forEach(d=>(d.teachers||[]).forEach(t=>{ if(Array.isArray(t.sections)) t.sections=secList(t.sections); }));
 }
 function splitBack(){
   const R=S.root; const yr={}; YKEYS.forEach(k=>{ if(S.cfg[k]!==undefined) yr[k]=clone(S.cfg[k]); }); yr.year=S.year; R.years[S.year]=yr;
-  Object.keys(S.cfg).forEach(k=>{ if(!YKEYS.includes(k)&&!["accounts","perms"].includes(k)) R[k]=clone(S.cfg[k]); });
+  Object.keys(S.cfg).forEach(k=>{ if(!YKEYS.includes(k)&&!["accounts","perms","userCaps"].includes(k)) R[k]=clone(S.cfg[k]); });
 }
 const RO = ()=>!!S.cfg.archived;
 function nextYearName(y){ const m=String(y).match(/(\d{4})\s*\/\s*(\d{4})/); return m?`${+m[1]+1}/${+m[2]+1}`:""; }
@@ -527,7 +527,10 @@ const DEFAULT_PERMS={
  coord:["visit.create","visit.sup","visit.peer","visit.send","plan.manage","pd.manage","reports.view","export.pdf"],
  teacher:[]
 };
-function can(c){ const u=S.user; if(!u) return false; if(u.role==="admin") return true; if(c==="visit.editClosed") c="visit.editOthers"; if(c==="users.manage"&&!acctMode()&&(u.role==="principal"||u.role==="deputy")) return true; const P=(S.root.perms||DEFAULT_PERMS)[u.role]||DEFAULT_PERMS[u.role]||[]; return P.includes(c); }
+const XCAPS=[["visit.copy","تكرار زيارة (نسخها باسم زائر آخر)"]];
+const ukey = u=>u?(u.uname||u.key||""):"";
+function hasXCap(u,c){ return ((S.root.userCaps||{})[ukey(u)]||[]).includes(c); }
+function can(c){ const u=S.user; if(!u) return false; if(u.role==="admin") return true; if(XCAPS.some(x=>x[0]===c)) return hasXCap(u,c); if(c==="visit.editClosed") c="visit.editOthers"; if(c==="users.manage"&&!acctMode()&&(u.role==="principal"||u.role==="deputy")) return true; const P=(S.root.perms||DEFAULT_PERMS)[u.role]||DEFAULT_PERMS[u.role]||[]; return P.includes(c); }
 const acctMode = ()=>S.mode==="fb"||ACC().length>0;
 const tLocal = t=>String(t.email||"").split("@")[0].toLowerCase();
 function resolveAcct(a){
@@ -1251,7 +1254,8 @@ function visitView(){
   const isMine=me.role==="teacher"&&me.teacherId===v.teacherId;
   const pds=PDS().filter(p=>p.visitId===v.id);
   return `<div class="sec-head"><div><div class="eyebrow">${esc(t.dept||"")} · الزيارة ${esc(ordOf(v))} من ${esc(ROLES[v.visitorRole])}</div><h2>${esc(t.name||"")} – ${fmtD(v.date)}</h2><p>${esc(ROLES[v.visitorRole])}: ${esc(v.visitorName)} · ${esc(PURPOSES[v.purpose])} · ${stChip(v)}${v.recordedByName&&v.recordedByName!==v.visitorName?` · أدخلها: ${esc(v.recordedByName)}`:""}${v.editedAt?` · آخر تحرير ${fmtD(v.editedAt.slice(0,10))}`:""}</p></div>
-  <div class="row"><button class="btn" data-go="list">رجوع للسجل</button>${linkBtns(v.classLink||(classLink(v.teacherId,v.section)||{}).l,v.classAsg||(classLink(v.teacherId,v.section)||{}).a)}${(v.status==="closed"||v.status==="sent")&&can("visit.send")?`<button class="btn gold" id="v-send">إرسال بالبريد (PDF مرفق)</button>`:""}<button class="btn pri" id="v-pdf">تنزيل PDF</button><button class="btn" id="v-word">Word</button>${!S.dl?`<button class="btn" id="v-print">طباعة</button>`:""}${canEditVisit(v)?`<button class="btn" id="v-edit">${v.status==="draft"?"متابعة التحرير":"إعادة تحرير الزيارة"}</button>`:""}${!RO()&&(can("visit.delete")||(ownVisit(v)&&v.status!=="sent"))?`<button class="btn danger" id="v-del">حذف</button>`:""}</div></div>
+  ${v.copyOf?`<div class="note small" style="margin-bottom:8px">نسخة من زيارة ${esc(ROLES[v.copyOf.role]||"")}${v.copyOf.visitor?" ("+esc(v.copyOf.visitor)+")":""}، أنشأها ${esc(v.copyOf.by||"")} بتاريخ <span class="num">${fmtD(String(v.copyOf.at||"").slice(0,10))}</span>.</div>`:""}
+  <div class="row"><button class="btn" data-go="list">رجوع للسجل</button>${linkBtns(v.classLink||(classLink(v.teacherId,v.section)||{}).l,v.classAsg||(classLink(v.teacherId,v.section)||{}).a)}${(v.status==="closed"||v.status==="sent")&&can("visit.send")?`<button class="btn gold" id="v-send">إرسال بالبريد (PDF مرفق)</button>`:""}<button class="btn pri" id="v-pdf">تنزيل PDF</button><button class="btn" id="v-word">Word</button>${!S.dl?`<button class="btn" id="v-print">طباعة</button>`:""}${can("visit.copy")&&!RO()&&v.status!=="planned"?`<button class="btn" id="v-copy" title="إنشاء نسخة من هذه الزيارة باسم زائر آخر">تكرار الزيارة</button>`:""}${canEditVisit(v)?`<button class="btn" id="v-edit">${v.status==="draft"?"متابعة التحرير":"إعادة تحرير الزيارة"}</button>`:""}${!RO()&&(can("visit.delete")||(ownVisit(v)&&v.status!=="sent"))?`<button class="btn danger" id="v-del">حذف</button>`:""}</div></div>
   <div class="grid g2" style="align-items:start">
    <div class="card"><div class="row" style="align-items:baseline;gap:10px"><span class="big-score num">${fix1(s.avg)}</span><span class="lv ${lvColor(s.avg)}">${esc(l.t)}</span></div>
    ${DOMV(v).map((d,i)=>`<div class="sum-row"><span>${d}</span><span class="lv ${lvColor(s.dom[i])} num">${fix1(s.dom[i])}</span></div>`).join("")}
@@ -1710,17 +1714,6 @@ ${v.visitorName}
 ${S.cfg.school}`;
   return {to,cc,subject,body};
 }
-/* ===== البريد على الجوال: ملف .eml لا يفتح في تطبيق Outlook على iOS/Android ===== */
-const IS_IOS=/iPhone|iPad|iPod/i.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
-const IS_MOBILE=IS_IOS||/Android|Mobi/i.test(navigator.userAgent);
-function appMailUrl(to,cc,subject,body){ const enc=encodeURIComponent; // iOS: تطبيق Outlook مباشرة · Android: قائمة تطبيقات البريد (اختر Outlook)
-  if(IS_IOS) return `ms-outlook://compose?to=${enc(to.join(","))}${cc.length?`&cc=${enc(cc.join(","))}`:""}&subject=${enc(subject)}&body=${enc(body)}`;
-  return `mailto:${to.map(enc).join(",")}?${cc.length?`cc=${enc(cc.join(","))}&`:""}subject=${enc(subject)}&body=${enc(body)}`; }
-async function shareVisitMobile(v,pdfP){ const m=mailParts(v); const addr=[...m.to,...m.cc].join("; ");
-  try{ if(addr&&navigator.clipboard) await navigator.clipboard.writeText(addr).catch(()=>{}); const f=await pdfP;
-    if(!(navigator.canShare&&navigator.canShare({files:[f]}))){ toast("المشاركة بالملفات غير مدعومة هنا؛ استخدم «فتح الرسالة في Outlook» ثم أرفق الاستمارة"); return false; }
-    await navigator.share({files:[f],title:m.subject,text:m.body}); toast(addr?"نُسخت عناوين المستلمين – الصقها في خانة «إلى» في Outlook":"تمت المشاركة"); return true; }
-  catch(e){ if(e&&e.name==="NotAllowedError"){ toast("اضغط الزر مرة أخرى (اكتمل تجهيز الملف)"); return false; } if(e&&e.name!=="AbortError") toast(e.message||"تعذّرت المشاركة"); return false; } }
 function sendDialog(v){
   const m=mailParts(v); const enc=encodeURIComponent;
   const outlook=`https://outlook.office.com/mail/deeplink/compose?to=${enc(m.to.join(";"))}&cc=${enc(m.cc.join(";"))}&subject=${enc(m.subject)}&body=${enc(m.body)}`;
@@ -1730,15 +1723,9 @@ function sendDialog(v){
   modal("إرسال تقرير الزيارة مع الاستمارة",`${hasTo?"":'<p class="note">لا يوجد بريد إلكتروني مسجّل لهذا المعلم؛ أضفه من الإعدادات.</p>'}
    <div class="fields"><label class="f">إلى (المعلم)<input readonly value="${esc(m.to.join("; ")||"—")}" dir="ltr"></label><label class="f">نسخة (منسق القسم)<input readonly value="${esc(m.cc.join("; ")||"—")}" dir="ltr"></label></div>
    <label class="f" style="margin-top:8px">الموضوع<input readonly value="${esc(m.subject)}"></label>
-   ${IS_MOBILE?`<div class="card" style="margin-top:12px;border-color:var(--gold)"><b>الإرسال من الجوال عبر تطبيق Outlook</b>
-    <p class="small muted" style="margin:4px 0 8px"><b>الطريقة الأولى (مع المرفق):</b> اضغط الزر ثم اختر <b>Outlook</b> من قائمة المشاركة؛ تُفتح رسالة جديدة فيها الاستمارة PDF ونص التقرير. عناوين المستلمين تُنسخ تلقائيًا، فالصقها في خانة «إلى».</p>
-    <div class="row"><button class="btn pri" id="sd-mshare">إرسال عبر Outlook مع الاستمارة</button></div>
-    <p class="small muted" style="margin:10px 0 8px"><b>الطريقة الثانية (المستلمون جاهزون):</b> تُفتح رسالة في ${IS_IOS?"تطبيق Outlook":"تطبيق البريد (اختر Outlook)"} فيها المستلمون والموضوع والنص، ثم أرفق الاستمارة من 📎 بعد حفظها.</p>
-    <div class="row"><a class="btn" id="sd-mapp" href="${esc(appMailUrl(m.to,m.cc,m.subject,m.body))}">فتح الرسالة في Outlook</a><button class="btn" id="sd-pdf">حفظ الاستمارة PDF</button><button class="btn ghost" id="sd-copyto2">نسخ العناوين</button></div></div>
-   <details style="margin-top:12px"><summary class="small" style="cursor:pointer;font-weight:700">خيارات الحاسوب</summary><div class="row" style="margin-top:8px"><button class="btn" id="sd-eml">رسالة Outlook جاهزة (.eml)</button><button class="btn" id="sd-word">Word</button></div></details>`:`
    <div class="card" style="margin-top:12px;border-color:var(--gold)"><b>الطريقة الموصى بها: رسالة Outlook جاهزة والاستمارة مرفقة</b>
     <p class="small muted" style="margin:4px 0 8px">يُنزَّل ملف رسالة (.eml) فيه المستلمون والموضوع ونص منسّق، والاستمارة مرفقة بصيغة PDF بالشعارات. افتحه بنقرة مزدوجة فيظهر في Outlook كرسالة جديدة، ثم اضغط «إرسال».</p>
-    <div class="row"><button class="btn pri" id="sd-eml">رسالة Outlook جاهزة بالمرفق</button><button class="btn" id="sd-share">مشاركة الاستمارة…</button><button class="btn" id="sd-pdf">تنزيل الاستمارة PDF</button><button class="btn" id="sd-word">Word</button></div></div>`}
+    <div class="row"><button class="btn pri" id="sd-eml">رسالة Outlook جاهزة بالمرفق</button><button class="btn" id="sd-share">مشاركة الاستمارة…</button><button class="btn" id="sd-pdf">تنزيل الاستمارة PDF</button><button class="btn" id="sd-word">Word</button></div></div>
    <details style="margin-top:12px"><summary class="small" style="cursor:pointer;font-weight:700">طرق بديلة (البريد على الويب – يُرفق الملف يدويًا)</summary>
     <div class="row" style="margin-top:8px"><a class="btn" href="${esc(outlook)}" target="_blank" rel="noopener">Outlook على الويب</a><a class="btn" href="${esc(gmail)}" target="_blank" rel="noopener">Gmail</a><a class="btn ghost" href="${esc(mailto)}">برنامج البريد</a><button class="btn" id="sd-copy">نسخ النص</button><button class="btn" id="sd-copyto">نسخ العناوين</button></div>
     <p class="small muted" style="margin:6px 0 0">في هذه الطرق نزّل الاستمارة أولًا ثم أرفقها في الرسالة قبل الإرسال.</p></details>
@@ -1746,13 +1733,31 @@ function sendDialog(v){
    [{t:"حفظ حالة الإرسال",cls:"pri",fn:async bg=>{ const sent=$("#sd-sent",bg).checked; const vv=S.visits[v.id]; if(!vv) return; if(sent&&vv.status!=="sent"){vv.status="sent";vv.sentAt=new Date().toISOString();await put("visits",vv);logAct("تسجيل إرسال زيارة",(T(vv.teacherId)||{}).name);toast("سُجّلت الزيارة كمُرسلة");render();} else if(!sent&&vv.status==="sent"){vv.status="closed";delete vv.sentAt;await put("visits",vv);render();} }}]);
   $("#sd-copy").onclick=()=>copyText(m.body); $("#sd-copyto").onclick=()=>copyText([...m.to,...m.cc].join("; ")); $("#sd-word").onclick=()=>wordDoc(v); $("#sd-pdf").onclick=()=>downloadVisitPdf(v);
   $("#sd-eml").onclick=()=>{ emlDownload(v); const c=$("#sd-sent"); if(c) c.checked=true; };
-  const sh=$("#sd-share"); if(sh){ if(!(navigator.canShare)) sh.hidden=true; sh.onclick=()=>shareWithFile(v); }
-  if(IS_MOBILE){ // تجهيز الـPDF مسبقًا: المشاركة على iOS تتطلب أن تتم فور الضغط
-    const pdfP=visitPdf(v).then(pdf=>new File([pdf.output("blob")],fileBase(v)+".pdf",{type:"application/pdf"})); pdfP.catch(()=>{});
-    const ms=$("#sd-mshare"); ms.onclick=async()=>{ if(await shareVisitMobile(v,pdfP)){ const c=$("#sd-sent"); if(c) c.checked=true; } };
-    $("#sd-mapp").addEventListener("click",()=>{ const c=$("#sd-sent"); if(c) c.checked=true; });
-    $("#sd-copyto2").onclick=()=>copyText([...m.to,...m.cc].join("; ")); }
+  const sh=$("#sd-share"); if(!(navigator.canShare)) sh.hidden=true; sh.onclick=()=>shareWithFile(v);
 }
+/* تكرار الزيارة باسم زائر آخر (صلاحية خاصة يمنحها مدير النظام) */
+function copyVisitDialog(v){ if(!can("visit.copy")) return; const t=T(v.teacherId)||{};
+  const RL=["principal","deputy","coord","sup","peer"]; const def=RL.find(r=>r!==v.visitorRole)||"deputy";
+  const bg=modal("تكرار الزيارة باسم زائر آخر",`<p class="small muted" style="margin-top:0">تُنشأ نسخة كاملة من زيارة <b>${esc(t.name||"")}</b> بتاريخ <span class="num">${fmtD(v.date)}</span> (المستويات والتوصيات والملاحظات)، وتُسجَّل في سجل الزائر الذي تختاره. الزيارة الأصلية لا تتغير.</p>
+   <div class="fields"><label class="f">صفة الزائر<select id="cp-r">${RL.map(k=>`<option value="${k}" ${k===def?"selected":""}>${ROLES[k]}</option>`).join("")}</select></label>
+   <label class="f">اسم الزائر<input id="cp-n" list="cp-vl"><datalist id="cp-vl"></datalist></label>
+   <label class="f">تاريخ الزيارة<input type="date" id="cp-d" value="${esc(v.date||"")}"></label>
+   <label class="f">حالة النسخة<select id="cp-s"><option value="draft">مسودة (للمراجعة قبل الاعتماد)</option><option value="closed" ${v.status==="closed"||v.status==="sent"?"selected":""}>معتمدة</option></select></label></div>
+   <p class="small muted">لا تُرسل النسخة للمعلم تلقائيًا، ولا تُضاف منها إجراءات تطوير مكررة.</p>`,
+   [{t:"إنشاء النسخة",cls:"pri",fn:async bg=>{ const role=$("#cp-r",bg).value, name=$("#cp-n",bg).value.trim(), date=$("#cp-d",bg).value||v.date;
+      if(!name){ toast("اكتب اسم الزائر"); return false; }
+      const dup=Object.values(S.visits).find(x=>x.id!==v.id&&x.teacherId===v.teacherId&&x.date===date&&x.visitorRole===role&&(normAr(x.visitorName)===normAr(name)||nameMatch(x.visitorName||"",name)));
+      if(dup&&!bg._ok){ bg._ok=1; toast("يوجد لهذا الزائر زيارة للمعلم في التاريخ نفسه؛ اضغط «إنشاء النسخة» مرة أخرى للتأكيد"); return false; }
+      const own=["principal","deputy","coord"].includes(role); const acct=own?users().find(u=>u.role!=="teacher"&&(nameMatch(u.name,name)||nkl(u.name)===nkl(name))):null;
+      const now=new Date().toISOString(); const c=clone(v);
+      ["sentAt","ack","ackAt","reflection","imp","editedAt","score","tv","recordedByUid","_existing","_dirty"].forEach(k=>delete c[k]);
+      Object.assign(c,{id:uid(),date,visitorRole:role,visitorName:name,purpose:role==="peer"?"peer":(v.purpose==="peer"?"eval":v.purpose),recordedBy:acct?acct.key:"copy",recordedByName:own?name:"",
+        status:$("#cp-s",bg).value,follow:{},reflection:"",createdAt:now,term:termOf(date),copyOf:{id:v.id,visitor:v.visitorName||"",role:v.visitorRole,by:S.user.name,at:now}});
+      if(c.status==="closed"){ c.closedAt=now; c.score=scoreOf(c).avg; } else delete c.closedAt;
+      try{ await put("visits",c); }catch(_){ return false; }
+      logAct("تكرار زيارة",`${t.name||""} ${fmtD(v.date)}: ${ROLES[v.visitorRole]||""} ← ${ROLES[role]} (${name})`); toast("أُنشئت النسخة"); openVisit(c.id); }}]);
+  const fill=()=>{ const r=$("#cp-r",bg).value; $("#cp-vl",bg).innerHTML=impKnownVisitors(r).filter(Boolean).map(n=>`<option value="${esc(n)}">`).join(""); $("#cp-n",bg).value=impVisitorName(r,"",v.teacherId)||""; };
+  $("#cp-r",bg).onchange=fill; fill(); }
 function bindVisit(){
   bindCommon(); const v=S.visits[S.arg]; if(!v) return;
   const b=id=>$("#"+id);
@@ -1760,6 +1765,7 @@ function bindVisit(){
   if(b("v-word")) b("v-word").onclick=()=>wordDoc(v);
   if(b("v-pdf")) b("v-pdf").onclick=()=>downloadVisitPdf(v);
   if(b("v-print")) b("v-print").onclick=()=>printSheet(v);
+  if(b("v-copy")) b("v-copy").onclick=()=>copyVisitDialog(v);
   if(b("v-edit")) b("v-edit").onclick=()=>{ if(v.status!=="draft") logAct("إعادة تحرير زيارة",(T(v.teacherId)||{}).name); F=clone(v); F._existing=true; if(F.status!=="draft"){F.status="draft";} S.view="form"; render(); };
   if(b("v-reopen")) b("v-reopen").onclick=()=>confirmBox("إعادة فتح الزيارة تعيدها مسودة لتعديلها ثم اعتمادها من جديد. متابعة؟",async()=>{ v.status="draft"; await put("visits",v); logAct("إعادة فتح زيارة",(T(v.teacherId)||{}).name); render(); },"إعادة فتح");
   if(b("v-del")) b("v-del").onclick=()=>confirmBox("حذف الزيارة نهائيًا مع إجراءات التطوير المرتبطة بها؟",async()=>{ for(const p of PDS().filter(p=>p.visitId===v.id)) await del("pd",p.id); await del("visits",v.id); logAct("حذف زيارة",`${(T(v.teacherId)||{}).name} – ${fmtD(v.date)}`); toast("حُذفت الزيارة"); go("list"); },"حذف");
@@ -2040,10 +2046,10 @@ function mailBox({title,to,cc,subject,html,text,attach,onDone}){
    <div class="fields"><label class="f">إلى<input readonly dir="ltr" value="${esc(to.join("; ")||"—")}"></label><label class="f">نسخة<input readonly dir="ltr" value="${esc(cc.join("; ")||"—")}"></label></div>
    <label class="f" style="margin-top:8px">الموضوع<input readonly value="${esc(subject)}"></label>
    <div class="form-sheet" style="margin-top:8px;max-height:260px;overflow:auto">${html}</div>
-   <div class="row" style="margin-top:10px">${IS_MOBILE?`<a class="btn pri" id="mb-app" href="${esc(appMailUrl(to,cc,subject,text))}">فتح الرسالة في Outlook</a>`:""}<button class="btn ${IS_MOBILE?"":"pri"}" id="mb-eml">رسالة Outlook جاهزة</button><a class="btn" href="${esc(outlook)}" target="_blank" rel="noopener">Outlook على الويب</a><button class="btn" id="mb-copy">نسخ النص</button></div>
+   <div class="row" style="margin-top:10px"><button class="btn pri" id="mb-eml">رسالة Outlook جاهزة</button><a class="btn" href="${esc(outlook)}" target="_blank" rel="noopener">Outlook على الويب</a><button class="btn" id="mb-copy">نسخ النص</button></div>
    <label class="row small" style="margin-top:10px"><input type="checkbox" id="mb-done" style="width:auto"> تم الإرسال (يُسجَّل تاريخ التذكير)</label>`,
    [{t:"حفظ",cls:"pri",fn:async bg=>{ if($("#mb-done",bg).checked&&onDone){ await onDone(); } }}]);
-  $("#mb-copy",bg).onclick=()=>copyText(text); const ma=$("#mb-app",bg); if(ma) ma.addEventListener("click",()=>{ $("#mb-done",bg).checked=true; });
+  $("#mb-copy",bg).onclick=()=>copyText(text);
   $("#mb-eml",bg).onclick=async()=>{ const bnd="----=_HamzaFU_"+uid(); const parts=[`To: ${to.join(", ")}`, cc.length?`Cc: ${cc.join(", ")}`:null, `Subject: ${encH(subject)}`,"X-Unsent: 1","MIME-Version: 1.0",`Content-Type: multipart/mixed; boundary="${bnd}"`,"",`--${bnd}`,"Content-Type: text/html; charset=UTF-8","Content-Transfer-Encoding: base64","",wrap76(b64u(`<html dir="rtl"><head><meta charset="utf-8"></head><body dir="rtl">${html}</body></html>`))];
     if(attach){ parts.push(`--${bnd}`,`Content-Type: ${attach.mime}; name="${encH(attach.name)}"`,"Content-Transfer-Encoding: base64",`Content-Disposition: attachment; filename="${encH(attach.name)}"`,"",wrap76(attach.b64)); }
     parts.push(`--${bnd}--`,""); await saveFile(fsafe(subject).slice(0,60)+".eml",parts.filter(x=>x!==null).join("\r\n"),"message/rfc822"); $("#mb-done",bg).checked=true; };
@@ -2106,13 +2112,7 @@ function resultsFromRows(rows,maxIn){
   const kAvg=find("المتوسط","التحصيل","نسبه التحصيل","average"); const kPass=find("نسبه النجاح","النجاح","pass"); const kN=find("عدد الطلاب","المختبرون","العدد");
   if(!kSec) throw new Error("لم أجد عمود الشعبة في الملف.");
   const out={};
-  const kPct=find("النسبه %","النسبه","percent"), kTier=find("التصنيف","الحاله");
-  if(kSub&&kPct&&!kAvg){ // ورقة «تصنيف الطلاب» من منصة تحليل الدرجات: صف لكل طالب في كل مادة
-    rows.forEach(r=>{ const d=deptForSubject(r[kSub]); const sec=normSection(r[kSec]); const v=parseFloat(String(r[kPct]).replace("%","")); if(!d||!sec||isNaN(v)) return;
-      const k=d.id+"|"+sec; const o=out[k]=out[k]||{deptId:d.id,section:sec,_s:0,_p:0,n:0};
-      const fail=kTier?/راسب/.test(String(r[kTier])):v<50; o._s+=v; o._p+=fail?0:1; o.n++; });
-    Object.values(out).forEach(o=>{ o.avg=o._s/o.n; o.pass=o._p/o.n*100; delete o._s; delete o._p; });
-  } else if(kSub&&kAvg){ // ملف مجمّع: مادة × شعبة
+  if(kSub&&kAvg){ // ملف مجمّع: مادة × شعبة
     rows.forEach(r=>{ const d=deptForSubject(r[kSub]); const sec=normSection(r[kSec]); const a=parseFloat(String(r[kAvg]).replace("%","")); if(!d||!sec||isNaN(a)) return;
       const p=kPass?parseFloat(String(r[kPass]).replace("%","")):null; out[d.id+"|"+sec]={deptId:d.id,section:sec,avg:a<=1?a*100:a,pass:p==null||isNaN(p)?null:(p<=1?p*100:p),n:kN?(+r[kN]||null):null}; });
   } else { // ملف طلاب عريض: عمود لكل مادة
@@ -2131,11 +2131,10 @@ async function readAllSheets(file){
   const wb=XLSX.read(buf,{type:"array"}); return wb.SheetNames.map(n=>({name:n,rows:XLSX.utils.sheet_to_json(wb.Sheets[n],{defval:"",raw:false})})).filter(x=>x.rows.length);
 }
 function resultsFromBook(sheets,maxIn){ // يجرّب كل الأوراق: المجمّعة أولًا ثم ملفات الطلاب، ويدمج النتائج
-  const agg=[], long=[], wide=[], errs=[];
-  sheets.forEach(sh=>{ try{ const keys=Object.keys(sh.rows[0]||{}).map(normAr); const hasSub=keys.some(k=>k.includes("الماده"));
-    const isAgg=hasSub&&keys.some(k=>/المتوسط|التحصيل|average/.test(k)); const isLong=hasSub&&!isAgg&&keys.some(k=>k.includes("النسبه"));
-    const r=resultsFromRows(sh.rows,maxIn); (isAgg?agg:isLong?long:wide).push({name:sh.name,r}); }catch(e){ errs.push(sh.name); } });
-  const pick=long.length?long:agg.length?agg:wide; if(!pick.length) throw new Error("لم أتعرّف على أي ورقة في الملف. المطلوب: عمود الشعبة مع عمود لكل مادة، أو الأعمدة: المادة · الشعبة · المتوسط (أو نسبة التحصيل) · نسبة النجاح.");
+  const agg=[], wide=[], errs=[];
+  sheets.forEach(sh=>{ try{ const keys=Object.keys(sh.rows[0]||{}).map(normAr); const isAgg=keys.some(k=>k.includes("الماده"))&&keys.some(k=>/المتوسط|التحصيل|average/.test(k));
+    const r=resultsFromRows(sh.rows,maxIn); (isAgg?agg:wide).push({name:sh.name,r}); }catch(e){ errs.push(sh.name); } });
+  const pick=agg.length?agg:wide; if(!pick.length) throw new Error("لم أتعرّف على أي ورقة في الملف. المطلوب: عمود الشعبة مع عمود لكل مادة، أو الأعمدة: المادة · الشعبة · المتوسط (أو نسبة التحصيل) · نسبة النجاح.");
   const out={}; pick.forEach(x=>x.r.forEach(o=>{ out[o.deptId+"|"+o.section]=o; })); return {rows:Object.values(out),used:pick.map(x=>x.name)};
 }
 function resultsOf(assess){ return ((S.cfg.results||{})[assess]||{}).rows||[]; }
@@ -2156,7 +2155,7 @@ function impactView(){
   const xs=rows.map(x=>x.a.avg), ys=rows.map(x=>x.r.avg); const r=pearson(xs,ys); const mY=ys.length?ys.reduce((a,b)=>a+b,0)/ys.length:null;
   const dr=[0,1,2,3].map(i=>{ const pr=rows.map(x=>({d:domAvg(x.a.vs,i),y:x.r.avg})).filter(o=>o.d!=null); return pearson(pr.map(o=>o.d),pr.map(o=>o.y)); });
   const q=x=>{ const hp=x.a.avg>=S.cfg.th[1], hr=x.r.avg>=mY; return hp&&hr?["ممارسات قوية · نتائج مرتفعة","lv1"]:hp?["ممارسات قوية · نتائج أقل","lv3"]:hr?["ممارسات تحتاج دعمًا · نتائج مرتفعة","lv2"]:["أولوية دعم","lv4"]; };
-  return `${canUp?`<div class="card" style="margin-bottom:14px"><div class="row" style="justify-content:space-between"><div><h3>نتائج الطلاب للعام ${esc(S.year)}</h3><p class="muted small" style="margin:2px 0 0">ارفع ملف Excel المصدَّر من منصة تحليل الدرجات («تصدير Excel» أو «تحليل الدرجات - جميع البيانات») لنفس الاختبار، أو ملف الرصد نفسه، أو ملفًا مجمّعًا بالأعمدة: المادة · الشعبة · المتوسط · نسبة النجاح. تُربط كل شعبة بمعلمها من كادر العام.</p></div>
+  return `${canUp?`<div class="card" style="margin-bottom:14px"><div class="row" style="justify-content:space-between"><div><h3>نتائج الطلاب للعام ${esc(S.year)}</h3><p class="muted small" style="margin:2px 0 0">ارفع ملف الرصد نفسه المستخدم في منصة تحليل الدرجات (عمود الشعبة + عمود لكل مادة)، أو ملفًا مجمّعًا بالأعمدة: المادة · الشعبة · المتوسط · نسبة النجاح. تُربط كل شعبة بمعلمها من كادر العام.</p></div>
    <div class="row"><select id="im-as">${ASSESS.map(a=>`<option>${a}</option>`).join("")}</select><label class="f" style="flex-direction:row;align-items:center;gap:6px;font-weight:600">الدرجة القصوى<input id="im-max" type="number" min="1" placeholder="تلقائي" style="width:90px"></label><label class="btn gold" style="cursor:pointer">رفع ملف النتائج<input type="file" id="im-file" accept=".xlsx,.xls,.xlsm,.csv" hidden></label></div></div>
    <div class="row small" style="margin-top:8px">${ASSESS.map(a=>{ const n=resultsOf(a).length; return `<span class="chip st ${n?"st-sent":"st-draft"}">${a}: ${n?n+" شعبة×مادة":"غير مرفوع"}${n?` <button class="btn sm ghost" data-im-del="${a}" style="padding:0 6px">حذف</button>`:""}</span>`; }).join("")}</div></div>`:""}
   ${!loaded.length?`<div class="empty">لم تُرفع نتائج للطلاب بعد لهذا العام.</div>`:`
@@ -2170,7 +2169,6 @@ function impactView(){
 }
 function bindImpact(){
   const f=$("#im-file"); if(f) f.onchange=async e=>{ const file=e.target.files[0]; e.target.value=""; if(!file) return; const as=$("#im-as").value; const mx=+$("#im-max").value||null;
-    if(/\.(pdf|png|jpe?g|webp|docx?)$/i.test(file.name)){ toast("هذا ملف تقرير (PDF/صورة) لا يحتوي درجات قابلة للقراءة. ارفع ملف Excel المصدَّر من منصة تحليل الدرجات («تصدير Excel») أو ملف الرصد، أو ملفًا مجمّعًا بأعمدة: المادة · الشعبة · المتوسط · نسبة النجاح."); return; }
     try{ const book=resultsFromBook(await readAllSheets(file),mx); const rows=book.rows; const tids=new Set(); rows.forEach(r=>allTeachers().filter(t=>t.deptId===r.deptId&&(t.sections||[]).map(normSection).includes(r.section)).forEach(t=>tids.add(t.id)));
       S.cfg.results=Object.assign({},S.cfg.results||{},{[as]:{rows,at:new Date().toISOString(),file:file.name}}); await saveCfg(); logAct("رفع نتائج الطلاب",`${as} – ${rows.length} شعبة×مادة`); IMP.assess=as;
       toast(`تم من ${book.used.length>1?book.used.length+" أوراق":"ورقة «"+book.used[0]+"»"}: ${rows.length} شعبة×مادة، ارتبطت بـ${tids.size} معلمًا`); render(); }catch(err){ toast(err.message||"تعذّرت قراءة الملف"); } };
@@ -2516,8 +2514,8 @@ function usersView(){
   const linked=a=>{ if(a.role!=="coord"&&a.role!=="teacher") return '<span class="muted">—</span>'; const r=resolveAcct(a); return r.teacherId?'<span class="lv lv1">مرتبط</span>':'<span class="lv lv4" title="لا يطابق أي معلم في كادر العام الحالي">غير مرتبط</span>'; };
   return `<div class="card"><div class="row" style="justify-content:space-between"><div><h3>الحسابات</h3><p class="muted small" style="margin:2px 0 0">${acc.length?`${acc.length} حسابًا · الدخول باسم المستخدم وكلمة المرور (مخزّنة مشفّرة).`:"لم تُرفع الحسابات بعد؛ النظام يعمل باختيار الصفة."}</p></div>
    <div class="row"><label class="btn gold" style="cursor:pointer">رفع ملف المستخدمين (Excel)<input type="file" id="u-file" accept=".xlsx,.xls,.csv" hidden></label><button class="btn" id="u-tpl">نموذج الملف</button><button class="btn" id="u-add">+ حساب</button>${S.mode==="fb"?`<button class="btn" id="u-relink">تحديث الربط بالكادر</button><button class="btn" id="u-rules">قواعد الحماية</button>`:""}</div></div>
-   ${acc.length?`<div class="tbl-wrap" style="margin-top:10px"><table><thead><tr><th>الاسم</th><th>اسم المستخدم</th><th>الوظيفة</th><th>المادة</th><th class="c">الربط بالكادر</th><th class="c">آخر دخول</th><th class="c">الحالة</th><th></th></tr></thead><tbody>
-   ${rows.map(a=>`<tr><td>${esc(a.name)}</td><td dir="ltr" class="small">${esc(a.u)}</td><td><select class="u-role" data-u="${esc(a.u)}" ${a.u===S.user.uname?"disabled":""}>${Object.entries(ROLE_NAMES).map(([k,v])=>`<option value="${k}" ${a.role===k?"selected":""}>${v}</option>`).join("")}</select></td><td class="small">${esc(a.dept||"")}</td><td class="c">${linked(a)}</td><td class="c small num">${a.last?fmtD(a.last.slice(0,10)):"—"}</td><td class="c">${a.disabled?'<span class="lv lv4">معطّل</span>':'<span class="lv lv1">فعّال</span>'}</td>
+   ${acc.length?`<div class="tbl-wrap" style="margin-top:10px"><table><thead><tr><th>الاسم</th><th>اسم المستخدم</th><th>الوظيفة</th><th>المادة</th><th class="c">الربط بالكادر</th><th class="c" title="صلاحيات خاصة يمنحها مدير النظام لمستخدم بعينه">صلاحيات خاصة</th><th class="c">آخر دخول</th><th class="c">الحالة</th><th></th></tr></thead><tbody>
+   ${rows.map(a=>`<tr><td>${esc(a.name)}</td><td dir="ltr" class="small">${esc(a.u)}</td><td><select class="u-role" data-u="${esc(a.u)}" ${a.u===S.user.uname?"disabled":""}>${Object.entries(ROLE_NAMES).map(([k,v])=>`<option value="${k}" ${a.role===k?"selected":""}>${v}</option>`).join("")}</select></td><td class="small">${esc(a.dept||"")}</td><td class="c">${linked(a)}</td><td class="c small">${a.role==="admin"?'<span class="muted">الكل</span>':a.role==="teacher"?'<span class="muted">—</span>':XCAPS.map(([c,l])=>`<label class="row" style="gap:4px;justify-content:center;flex-wrap:nowrap;white-space:nowrap" title="${esc(l)}"><input type="checkbox" class="u-xcap" data-u="${esc(a.u)}" data-c="${c}" ${((S.root.userCaps||{})[a.u]||[]).includes(c)?"checked":""} ${S.user.role!=="admin"?"disabled":""} style="width:auto">تكرار زيارة</label>`).join("")}</td><td class="c small num">${a.last?fmtD(a.last.slice(0,10)):"—"}</td><td class="c">${a.disabled?'<span class="lv lv4">معطّل</span>':'<span class="lv lv1">فعّال</span>'}</td>
    <td class="row" style="flex-wrap:nowrap">${a.u!==S.user.uname?`<button class="btn sm" data-udis="${esc(a.u)}">${a.disabled?"تفعيل":"تعطيل"}</button><button class="btn sm danger" data-udel="${esc(a.u)}">حذف</button>`:""}</td></tr>`).join("")}</tbody></table></div>`:""}</div>
   <div class="card" style="margin-top:14px"><div class="row" style="justify-content:space-between"><div><h3>مصفوفة الصلاحيات</h3><p class="muted small" style="margin:2px 0 0">مدير النظام يملك كل الصلاحيات دائمًا. المنسق يرى قسمه فقط ما لم تُمنح له «الاطلاع على جميع الأقسام»، والمعلم يرى زياراته وخطته فقط.</p></div><div class="row"><button class="btn" id="pm-reset">الافتراضي</button><button class="btn pri" id="pm-save">حفظ الصلاحيات</button></div></div>
    <div class="tbl-wrap" style="margin-top:10px"><table><thead><tr><th>الصلاحية</th><th class="c">مدير النظام</th>${roles.map(r=>`<th class="c">${ROLE_NAMES[r]}</th>`).join("")}</tr></thead><tbody>
@@ -2584,6 +2582,7 @@ function bindUsersFB(){
   $$("[data-udel]").forEach(b=>b.onclick=()=>confirmBox("حذف صلاحيات هذا الحساب؟ (يبقى حساب الدخول في Firebase دون أي صلاحية)",async()=>{ const x=find(b.dataset.udel); try{ await FB.db.doc("users/"+x.uid).delete(); logAct("حذف حساب",x.name); }catch(e){ toast(fbErr(e)); } },"حذف"));
   $$(".u-role").forEach(s=>s.onchange=async()=>{ const x=find(s.dataset.u); if(x.role==="admin"&&s.value!=="admin"&&(S.fbUsers||[]).filter(a=>a.role==="admin"&&!a.disabled).length<2){ toast("يجب أن يبقى مدير نظام واحد على الأقل"); s.value="admin"; return; }
     try{ await FB.db.doc("users/"+x.uid).update({role:s.value}); logAct("تغيير وظيفة",`${x.name} ← ${ROLE_NAMES[s.value]}`); toast("حُدّثت الوظيفة"); }catch(e){ toast(fbErr(e)); } });
+  $$(".u-xcap").forEach(x=>x.onchange=async()=>{ if(S.user.role!=="admin"){ x.checked=!x.checked; toast("هذه الصلاحية يمنحها مدير النظام فقط"); return; } const m=Object.assign({},S.root.userCaps||{}); const cur=new Set(m[x.dataset.u]||[]); x.checked?cur.add(x.dataset.c):cur.delete(x.dataset.c); if(cur.size) m[x.dataset.u]=[...cur]; else delete m[x.dataset.u]; S.root.userCaps=m; try{ await persistRoot(); }catch(_){ return; } const a=ACC().find(y=>y.u===x.dataset.u); logAct(x.checked?"منح صلاحية تكرار زيارة":"سحب صلاحية تكرار زيارة",a?a.name:x.dataset.u); toast(x.checked?"مُنحت صلاحية تكرار الزيارة":"سُحبت الصلاحية"); });
   const ps=$("#pm-save"); if(ps) ps.onclick=async()=>{ const P={principal:[],deputy:[],coord:[],teacher:[]}; $$(".pm").forEach(c=>{ if(c.checked) P[c.dataset.r].push(c.dataset.c); }); S.root.perms=P; await persistRoot(); logAct("تعديل مصفوفة الصلاحيات",""); toast("حُفظت الصلاحيات"); render(); };
   const pr=$("#pm-reset"); if(pr) pr.onclick=()=>confirmBox("استعادة الصلاحيات الافتراضية؟",async()=>{ S.root.perms=clone(DEFAULT_PERMS); await persistRoot(); render(); },"استعادة");
   const lq=$("#lg-q"); if(lq) lq.onchange=()=>{ S._logq=lq.value; render(); };
@@ -2607,6 +2606,7 @@ function bindUsers(){ if(S.mode==="fb"){ bindUsersFB(); return; }
   $$("[data-udis]").forEach(b=>b.onclick=async()=>{ const x=S.root.accounts.find(x=>x.u===b.dataset.udis); x.disabled=!x.disabled; await persistRoot(); logAct(x.disabled?"تعطيل حساب":"تفعيل حساب",x.name); render(); });
   $$("[data-udel]").forEach(b=>b.onclick=()=>confirmBox("حذف هذا الحساب؟",async()=>{ const x=S.root.accounts.find(x=>x.u===b.dataset.udel); S.root.accounts=S.root.accounts.filter(y=>y!==x); await persistRoot(); logAct("حذف حساب",x.name); render(); },"حذف"));
   $$(".u-role").forEach(s=>s.onchange=async()=>{ const x=S.root.accounts.find(x=>x.u===s.dataset.u); x.role=s.value; if(!S.root.accounts.some(a=>a.role==="admin"&&!a.disabled)){ toast("يجب أن يبقى مدير نظام واحد على الأقل"); x.role="admin"; render(); return; } await persistRoot(); logAct("تغيير وظيفة",`${x.name} ← ${ROLE_NAMES[x.role]}`); toast("حُدّثت الوظيفة"); });
+  $$(".u-xcap").forEach(x=>x.onchange=async()=>{ if(S.user.role!=="admin"){ x.checked=!x.checked; toast("هذه الصلاحية يمنحها مدير النظام فقط"); return; } const m=Object.assign({},S.root.userCaps||{}); const cur=new Set(m[x.dataset.u]||[]); x.checked?cur.add(x.dataset.c):cur.delete(x.dataset.c); if(cur.size) m[x.dataset.u]=[...cur]; else delete m[x.dataset.u]; S.root.userCaps=m; try{ await persistRoot(); }catch(_){ return; } const a=ACC().find(y=>y.u===x.dataset.u); logAct(x.checked?"منح صلاحية تكرار زيارة":"سحب صلاحية تكرار زيارة",a?a.name:x.dataset.u); toast(x.checked?"مُنحت صلاحية تكرار الزيارة":"سُحبت الصلاحية"); });
   const ps=$("#pm-save"); if(ps) ps.onclick=async()=>{ const P={principal:[],deputy:[],coord:[],teacher:[]}; $$(".pm").forEach(c=>{ if(c.checked) P[c.dataset.r].push(c.dataset.c); }); S.root.perms=P; await persistRoot(); logAct("تعديل مصفوفة الصلاحيات",""); toast("حُفظت الصلاحيات"); render(); };
   const pr=$("#pm-reset"); if(pr) pr.onclick=()=>confirmBox("استعادة الصلاحيات الافتراضية؟",async()=>{ S.root.perms=clone(DEFAULT_PERMS); await persistRoot(); render(); },"استعادة");
   const lq=$("#lg-q"); if(lq) lq.onchange=()=>{ S._logq=lq.value; render(); };
